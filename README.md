@@ -130,7 +130,7 @@ Three ADRs document the key design choices:
 
 ## Safety contract
 
-- **Secret deny-list (HR-4):** `.env`, `id_rsa`, `.git/`, and anything matching the bundled regex never enters the evaluator's input. AC-7 binds this — a dummy `API_KEY=test123` in a fixture must not appear in any output.
+- **Secret deny-list (HR-4):** `.env`, `id_rsa`, `.git/`, and anything matching the bundled regex never enters the evaluator's input. **Threat model**: a secret hardcoded inside a harness file (e.g., an API key pasted into `CLAUDE.md`) could otherwise be verbatim-echoed by the LLM into a rationale string and persisted to `.meta-harness/reports/<UTC>-evaluate.json`. HR-4 is local defense-in-depth against that specific path; it is not an API-transport guard (the Claude Code host handles transport, and meta-harness adds no new network surface). AC-7 binds this — a dummy `API_KEY=test123` in a fixture must not appear in any output.
 - **Cwd guard (HR-3):** Refuses `/`, `$HOME`, `/tmp`, `/private/tmp`. Symlinks resolved with `pwd -P`.
 - **Atomic write (HR-1):** All disk writes use `.tmp.$$` → `mv`. Build and improve snapshot pre-overwrite files under `.meta-harness/.snapshot/<UTC>/` for rollback.
 - **Cap + stagnation (AC-3 / HR-5):** Improve never runs more than 3 rounds against your project; two consecutive non-improvements auto-exit.
