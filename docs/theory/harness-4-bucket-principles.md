@@ -23,7 +23,7 @@ each of which becomes one scoring axis (0-5):
 
 | Bucket | Axis ID | What lives here | Key files (typical) |
 |--------|---------|-----------------|---------------------|
-| A. Persona & Identity | `persona` | Who the agent IS; project constitution | `CLAUDE.md`, `agents/*.md` |
+| A. Persona & Rules    | `persona` | Who the agent IS and what operational rules govern it; project constitution | `CLAUDE.md`, `agents/*.md` |
 | B. Capabilities       | `capabilities` | What the agent CAN DO; workflows + commands | `skills/<name>/SKILL.md`, `commands/*.md` |
 | C. Runtime & Tools    | `runtime` | What the agent has ACCESS to and HOW it runs | `.claude/settings.json`, `hooks/*`, MCP servers |
 | D. Meta-Governance    | `meta_gov` | How the harness evolves and is governed | `README.md`, `CHANGELOG.md`, `docs/ADR-*.md` |
@@ -33,13 +33,42 @@ concrete anchors. The per-axis score is the **rounded average of its 5 criterion
 scores** (see "Aggregation" at the end). The total is the sum of the 4 axis scores
 (0-20).
 
+### Where do "rules" live in this rubric?
+
+**Across all four buckets, but primarily in Persona.** This rubric does NOT carve
+rules into a 5th bucket because 2026 industry practice (Karpathy on Software 3.0
+context slots; OpenAI Codex / Stripe harness patterns; multica's behavioral-rules
+CLAUDE.md template) converges on rules being **a cross-cutting concern**, not a
+standalone layer:
+
+| Bucket | Rule-shaped content scored here |
+|---|---|
+| **Persona & Rules** (A) | Behavioral rules in CLAUDE.md (PER-1 anchors), operational "when X do Y" rules (PER-3), prohibitions and refusals (PER-4). **Primary home of rules.** |
+| **Capabilities** (B) | Workflow rules with verification steps (CAP-1, CAP-3 plan-then-act discipline), eval fixtures that encode pass/fail rules (CAP-4) |
+| **Runtime & Tools** (C) | Permission allow/deny rules (RUN-1), tool-surface narrowing rules (RUN-2), opt-in hook rules (RUN-3), secret-denylist rules (RUN-4) |
+| **Meta-Governance** (D) | Meta-rules captured as ADRs (MG-3), SemVer protocol rules (MG-2), improvement-loop rules with cap + stagnation (MG-5) |
+
+The Persona axis is named **"Persona & Rules"** (not just "Persona") because the
+*primary* location for behavioral and architectural rules is `CLAUDE.md`. PER-3
+("rules are mechanizable, not aspirational") and PER-4 ("scope & refusal boundaries
+are explicit") are the two criteria most directly scoring rule-clarity, but a
+project with rules scattered across hidden config files instead of surfaced in
+`CLAUDE.md` will score lower on PER-1 ("project-specific") and PER-5 ("composable,
+not monolithic"). Surface your rules; do not hide them.
+
 ---
 
-## Axis 1: Persona & Identity (`persona`, 0-5)
+## Axis 1: Persona & Rules (`persona`, 0-5)
 
-What is being scored: the clarity, depth, and operational usefulness of who the
-agent is supposed to be in this project. A strong persona collapses ambiguity at
-the start of every session.
+What is being scored: the clarity, depth, and operational usefulness of (a) **who
+the agent is** in this project and (b) **what rules govern its behavior**. A
+strong persona-and-rules layer collapses ambiguity at the start of every session
+AND removes whole classes of failure ("model didn't know we never touch
+`infra/production/`") by stating them explicitly. The axis ID stays `persona` for
+schema stability; the conceptual scope includes rules. Of the 5 criteria below,
+**PER-3 and PER-4** are the two most directly scoring rule clarity; **PER-1**
+scores how well rules are localized in CLAUDE.md; **PER-5** scores whether rules
+are composable rather than buried in a single mega-prompt.
 
 ### PER-1 — CLAUDE.md exists and is project-specific
 

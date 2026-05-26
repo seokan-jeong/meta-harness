@@ -1,10 +1,11 @@
 ---
 kb_id: karpathy-context-engineering
-source: "Andrej Karpathy public writing (X/Twitter threads, blog posts, talks, and 'State of GPT' / 'Software 3.0' lectures)"
+source: "Andrej Karpathy public writing (X/Twitter threads, blog posts, Sequoia Ascent 2026 'Software is Changing (Again)' / Software 3.0 talk, 'State of GPT' lecture, and his announcement of joining Anthropic's pre-training team on 2026-05-19)"
 source_urls:
   - https://karpathy.ai/
   - https://x.com/karpathy
   - https://karpathy.github.io/
+  - https://karpathy.bearblog.dev/sequoia-ascent-2026/
 version: "1.0.0"
 last_synced: "2026-05-26"
 applies_to_axes: [persona, capabilities, runtime, meta_gov]
@@ -15,15 +16,51 @@ applies_to_axes: [persona, capabilities, runtime, meta_gov]
 > A distillation of Andrej Karpathy's public thinking on how to build LLM-based systems
 > that are reliable, debuggable, and "engineering-grade" rather than vibes-grade.
 > The principles below are written in his idiom and remapped to the 4-bucket harness model
-> (Persona, Capabilities, Runtime, Meta-Governance) used by meta-harness.
+> (Persona & Rules, Capabilities, Runtime, Meta-Governance) used by meta-harness.
 
 ## Why this KB exists
 
-Karpathy's central thesis: **LLM applications are 1% modeling and 99% context engineering**.
-The model is fixed; the leverage is in what you put into its context window, how that
-context is structured, how outputs flow back in, and how the whole loop is debugged.
-A harness that ignores these principles produces "demo-ware" — works on the happy path,
-crumbles under real load.
+### The Software 3.0 frame (Sequoia Ascent 2026)
+
+Karpathy's organizing metaphor for the post-2024 stack: there have been **three
+eras of computing**.
+
+- **Software 1.0** — humans write explicit code; the program is the source.
+- **Software 2.0** — humans curate datasets; the program is the weights.
+- **Software 3.0** — humans write prompts; the **program is the context window**, the
+  **interpreter is the LLM**.
+
+In Software 3.0, "the model weights are the **CPU** — fixed processing substrate — and
+the **context window is RAM** — short-term, working memory of what is currently
+relevant to the task." Everything in this KB follows from that mapping. If the
+context window is your program, every token in it is a design decision; if the LLM
+is the interpreter, you do not "ask it to think" — you **engineer the program** it will
+interpret.
+
+### Vibe coding vs. agentic engineering
+
+By February 2026 Karpathy had named two distinct disciplines that share the
+Software-3.0 substrate but differ in goal:
+
+- **Vibe coding** — *raises the floor*. Anyone can describe what they want and get
+  working software for the first time. Suitable for prototypes, personal tools,
+  exploratory work.
+- **Agentic engineering** — *raises the ceiling*. The professional discipline of
+  "coordinating fallible agents while preserving correctness, security, taste,
+  and maintainability". Activities: writing detailed specs, supervising plans,
+  inspecting diffs, writing tests, creating evaluation loops, managing
+  permissions, isolating worktrees, preserving quality gates.
+
+meta-harness is a tool for **agentic engineering**, not vibe coding. Every principle
+below is a load-bearing assumption for that mode.
+
+### The core thesis
+
+Karpathy's compact statement, repeated in talks and tweets: **LLM applications are
+1% modeling and 99% context engineering**. The model is fixed; the leverage is in
+what you put into its context window, how that context is structured, how outputs
+flow back in, and how the whole loop is debugged. A harness that ignores these
+principles produces "demo-ware" — works on the happy path, crumbles under real load.
 
 Harness designers, treat the items below as load-bearing assumptions, not opinions.
 
@@ -90,6 +127,20 @@ diff between runs.
 and the score delta is what merges (or rejects) the change. The eval itself is a
 first-class artifact in the harness.
 
+**Verifiability formula (Sequoia 2026).** Karpathy's diagnosis of *where* LLM agents
+work versus where they fail:
+
+> capability_spike ≈ verifiability × training_attention × data_coverage × economic_value
+
+The first term is the only one you control as a harness designer: **can the task
+receive automatic feedback?** Coding agents work because tests pass/fail, programs
+run/crash, and diffs are inspectable; chat agents lag because "good prose" has no
+automatic grader. Eval-driven dev is the mechanism that **manufactures verifiability**
+for your domain. Without a verifier, even a strong base model drifts; with one,
+even a mediocre base model becomes reliable. The old engineering question was
+"what can we specify?"; the agentic-engineering question is **"what can we verify?"**
+and engineer the harness around that.
+
 ---
 
 ## Principle 4 — Mode-1 vs Mode-2: design for the slow, deliberate loop
@@ -113,6 +164,16 @@ codebase from memory.
 plan surface, and verification gates ("after editing, you MUST run the tests and
 paste the output"). The agent's deliberation happens through tool calls, not through
 unverified internal monologue.
+
+**Agent-native infrastructure (Sequoia 2026).** Mode-2 only works if the world
+exposes affordances the agent can actually grip. Karpathy's recommended substrate
+for products that expect to be driven by agents: **markdown documentation, CLIs
+and APIs, MCP servers, structured logs, machine-readable schemas, copy-pasteable
+agent instructions, safe permissioning models, auditable action logs, headless
+setup flows**. He frames the future stack in terms of **sensors** (convert world
+state into digital information the agent can read) and **actuators** (let the
+agent change things, safely and auditably). A harness whose only affordance is a
+free-text chat surface forces every problem back into mode-1 and back to vibes.
 
 ---
 
@@ -203,18 +264,55 @@ counter for "model output was invalid on attempt N".
 
 ---
 
+## Principle 9 — Jagged intelligence: profile your circuits, do not trust a smooth IQ
+
+**Statement.** LLMs are **not smooth intelligences**. In Karpathy's framing they are
+"statistical simulation circuits" shaped by pretraining data, RL objectives, and
+product incentives. They **spike** in domains the training pipeline has rewarded
+(coding, math, common-knowledge QA) and **fail bizarrely** in others — sometimes
+adjacent ones. The harness's job is to figure out empirically **which circuits its
+use case sits in**, not to assume uniform competence.
+
+**Why it matters.** A harness designer who assumes "the model can probably do X
+because it can do X-prime" is one bad prompt away from a silent production
+regression. Karpathy: *"You have to figure out which circuits your application
+is in. If you are not in those circuits, then you have to look at fine-tuning
+or doing some of your own work."* The honest move is to run a small fixture set
+against your actual use case, score it, and **only then** decide whether the base
+model is good enough — or whether you need fine-tuning, RAG, or a domain-specific
+environment with reward shaping. (See also P3 on eval-driven development; P9 is
+P3 applied to capability profiling rather than to prompt tuning.)
+
+**Anti-pattern.** Shipping an agent on the assumption that "this model is great
+at code, so it'll be fine on our DSL / internal protocol / proprietary SDK". The
+model has never seen the in-house artifact. Production surfaces the gap — usually
+in front of a customer — and the team's first instinct is to blame the prompt
+rather than the missing capability.
+
+**Pass-pattern.** A fixture set sampled from real production tasks. The harness
+records per-fixture scores over time, so a model upgrade that *improves* on
+public benchmarks but *regresses* on your specific circuits is detectable on day
+one. The KB-versioning + `kb_manifest_hash` pattern in meta-harness exists for
+exactly this reason — to make per-circuit drift attributable.
+
+---
+
 ## How these principles map to meta-harness's 4 buckets
 
-| Principle | Persona | Capabilities | Runtime | Meta-Gov |
-|-----------|:-------:|:------------:|:-------:|:--------:|
-| P1 Context engineering   | X | X | X | . |
-| P2 System prompts        | X | . | . | . |
-| P3 Eval-driven dev       | . | X | . | X |
-| P4 Mode-1 vs Mode-2      | . | X | X | . |
-| P5 Tokenization of ctx   | X | . | X | . |
-| P6 Harness is a debugger | . | . | X | X |
-| P7 Small sharp agents    | X | X | . | . |
-| P8 Stochastic component  | . | X | X | . |
+(Persona & Rules in v1.0; the "Rules" framing was clarified in the 2026 rubric
+refresh but the axis ID `persona` is unchanged.)
 
-When evaluating a harness, cite these principle IDs (P1-P8) alongside KB-3 criterion
-IDs to give the score actionable provenance.
+| Principle | Persona & Rules | Capabilities | Runtime | Meta-Gov |
+|-----------|:---------------:|:------------:|:-------:|:--------:|
+| P1 Context engineering        | X | X | X | . |
+| P2 System prompts             | X | . | . | . |
+| P3 Eval-driven dev (+ verifiability) | . | X | . | X |
+| P4 Mode-1 vs Mode-2 (+ agent-native infra) | . | X | X | . |
+| P5 Tokenization of ctx        | X | . | X | . |
+| P6 Harness is a debugger      | . | . | X | X |
+| P7 Small sharp agents         | X | X | . | . |
+| P8 Stochastic component       | . | X | X | . |
+| P9 Jagged intelligence        | . | X | . | X |
+
+When evaluating a harness, cite these principle IDs (P1-P9) alongside KB-3
+criterion IDs to give the score actionable provenance.

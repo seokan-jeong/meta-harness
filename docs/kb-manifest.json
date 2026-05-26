@@ -1,13 +1,13 @@
 {
   "manifest_version": "1.0.0",
   "kb_set_version": "1.0.0",
-  "generated_at": "2026-05-26T07:31:21Z",
+  "generated_at": "2026-05-26T09:27:34Z",
   "entries": [
     {
       "kb_id": "karpathy-context-engineering",
       "path": "docs/theory/karpathy-context-engineering.md",
       "version": "1.0.0",
-      "sha256": "sha256:aeaf437ae0f665e9500dbb065e9db5470441f8512ff80fb08ca582308acab489"
+      "sha256": "sha256:4c2bc6d871aae0a5262f10cf7444ef9348b583ae15b960154e490c50ce87d824"
     },
     {
       "kb_id": "anthropic-agentic-loops",
@@ -19,9 +19,9 @@
       "kb_id": "harness-4-bucket-principles",
       "path": "docs/theory/harness-4-bucket-principles.md",
       "version": "1.0.0",
-      "sha256": "sha256:6441b55654d26b158e56eb1dfaf7b51a8e4aa26f7c33361b22b76f1509bb15ee"
+      "sha256": "sha256:cf21d995bd779b23a6b8c7390cab42418999367b81a8028c980301b97f0bd24a"
     }
   ],
-  "combined_hash": "sha256:5d087bc78f99feb1eca83b6e829cb4e36f07c015172e9f48a33e528b758e32f8",
+  "combined_hash": "sha256:fa72e7ce2136e450a9837b12e5e3bb6b88a60e316b819f611d190762f9ac19b1",
   "notes": "Filled atomically by scripts/build-kb-manifest.sh. sha256 of file bytes; combined_hash = sha256 of concatenated sorted-by-kb_id entry sha256 strings."
 }

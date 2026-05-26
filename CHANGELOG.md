@@ -30,11 +30,12 @@ Initial release. Six implementation milestones (M1–M6) complete; nine acceptan
 
 ### KB
 
-- **`docs/theory/karpathy-context-engineering.md`** v1.0.0 — 8 principles distilled from Karpathy's public writing on context engineering.
+- **`docs/theory/karpathy-context-engineering.md`** v1.0.0 — **9 principles** distilled from Karpathy's public writing on context engineering. Last synced 2026-05-26 against Sequoia Ascent 2026 ("Software is Changing (Again)") and his announcement of joining Anthropic's pre-training team (2026-05-19). Intro reframes the KB around the **Software 3.0** mapping (weights = CPU, context window = RAM, LLM = interpreter) and the **agentic-engineering vs. vibe-coding** distinction; P3 adds the verifiability formula `capability_spike ≈ verifiability × training_attention × data_coverage × economic_value`; P4 adds **agent-native infrastructure** (MCP, sensors/actuators, structured logs); **new P9 — jagged intelligence** — captures Karpathy's directive to empirically profile your application's circuits rather than assume smooth capability.
 - **`docs/theory/anthropic-agentic-loops.md`** v1.0.0 — 8 principles from Anthropic's agentic-loops material.
-- **`docs/theory/harness-4-bucket-principles.md`** v1.0.0 — Master rubric: 4 axes × 5 criteria = 20 criteria. Banker's rounding canonical (AK-M1-1 fix).
+- **`docs/theory/harness-4-bucket-principles.md`** v1.0.0 — Master rubric: 4 axes × 5 criteria = 20 criteria. **Axis 1 named "Persona & Rules"** (JSON key `persona` unchanged for schema stability); a "Where do rules live?" callout in the intro documents rules as a **cross-cutting concern** scored primarily by PER-3/PER-4, with rule-shaped content also surfaced in CAP-1/3/4, RUN-1/2/3/4, and MG-3/5. Banker's rounding canonical (AK-M1-1 fix).
 - **`docs/kb-manifest.json`** v1.0.0 — Real sha256 per entry + combined_hash; builder script idempotent.
 - KB set version: **1.0.0** (matches plugin v0.1.0 initial release).
+- **`templates/persona/CLAUDE.md.tpl`** — section A renamed "Persona & Rules"; ships a **Behavioral Rules** slot pre-filled with four operational rules (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution) adapted from [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills) — a community distillation of Karpathy's agentic-engineering guidance.
 
 ### Safety
 

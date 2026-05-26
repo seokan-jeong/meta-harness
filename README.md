@@ -1,6 +1,6 @@
 # meta-harness
 
-A Claude Code plugin that **scores, builds, and improves project-level Claude Code harnesses** against a curated knowledge base of "what a good harness looks like" — drawn from Karpathy's context-engineering writing, Anthropic's agentic-loops guidance, and a derived 4-bucket rubric (Persona, Capabilities, Runtime, Meta-Governance).
+A Claude Code plugin that **scores, builds, and improves project-level Claude Code harnesses** against a curated knowledge base of "what a good harness looks like" — drawn from Karpathy's context-engineering writing (including his 2026 Software 3.0 / agentic-engineering framing), Anthropic's agentic-loops guidance, and a derived 4-bucket rubric (**Persona & Rules**, Capabilities, Runtime, Meta-Governance).
 
 The plugin treats *your project* as the system under test. It does not modify your code — it inspects the structural and procedural scaffolding around your code (your `CLAUDE.md`, your agent definitions, your skill registry, your hooks, your governance docs) and tells you how that scaffolding measures against the rubric.
 
@@ -110,7 +110,7 @@ A typical output:
 }
 ```
 
-Each `rationale` must cite at least one KB criterion ID (e.g., `KB-3 P-2` for "Persona bucket has explicit role-and-scope statement"). The validator (`scripts/validate-eval-output.sh`) enforces ≥80-char rationale + criterion citation regex; a vacuous "looks good" rationale is rejected at parse time.
+Each `rationale` must cite at least one KB criterion ID (e.g., `KB-3 PER-4` for "Persona & Rules bucket has explicit scope-and-refusal statement"). The validator (`scripts/validate-eval-output.sh`) enforces ≥80-char rationale + criterion citation regex; a vacuous "looks good" rationale is rejected at parse time.
 
 Stable reproducibility: with the same KB manifest hash and the same project input, three consecutive evaluate runs produce per-axis scores within a range of 2 (max − min ≤ 2) and a total within ±2.
 
