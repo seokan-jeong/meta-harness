@@ -1,0 +1,17 @@
+# Internal team-shinchan workflow state (REQUESTS, PLAN, ADR drafts,
+# WORKFLOW_STATE, PROGRESS, AK reviews). The public-facing ADR mirrors live
+# under docs/adr/; the internal drafts are kept local only.
+.shinchan-docs/
+
+# Local Claude Code tooling sidecar (timeline / hints state).
+.openchrome/
+
+# Plugin runtime artifacts generated when /meta-harness:build, manage,
+# evaluate, or improve runs against a target project. Listed here so that
+# if you ever invoke the plugin against this repo itself (e.g. dogfooding),
+# the snapshots and reports don't get committed.
+.meta-harness/reports/
+.meta-harness/.snapshot/
+
+# macOS metadata
+.DS_Store

@@ -1,0 +1,21 @@
+{
+  "_format_note": "Meta-harness's own hook registry. Both hooks ship OFF per ADR-0003. The plugin's runtime equivalent (Claude Code) should treat enabled:false as a no-op; flip to true in the user's local copy to opt in. AC-5 verification: jq '.hooks[].enabled' must yield only `false` values when this file is shipped.",
+  "_kb_version": "1.0.0",
+  "_plugin_version": "0.1.0",
+  "hooks": [
+    {
+      "name": "session-start-healthcheck",
+      "event": "SessionStart",
+      "script": "hooks/session-start-healthcheck.sh",
+      "enabled": false,
+      "description": "On every Claude Code session start in a directory that already has a harness, run /meta-harness:manage --json-only --silent and write the report under .meta-harness/reports/. Opt-in. ADR-0003 default-OFF rationale: silent disk writes from a hook are a surprise vector; the operator must consciously enable."
+    },
+    {
+      "name": "stop-evaluate",
+      "event": "Stop",
+      "script": "hooks/stop-evaluate.sh",
+      "enabled": false,
+      "description": "On Claude Code Stop in a harnessed directory, run /meta-harness:evaluate --json-only and write the JSON report under .meta-harness/reports/. Opt-in. Same default-OFF rationale: an evaluate run can take 30-120s and is billable (LLM-as-judge); auto-triggering on every Stop is a footgun. Note: evaluate's stdout redirect is non-atomic (unlike the manage hook which uses --write-report); partial JSON may land on evaluate failure — v0.2 will symmetrize this once evaluate gains --write-report."
+    }
+  ]
+}
