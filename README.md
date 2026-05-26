@@ -92,6 +92,8 @@ The hooks themselves are idempotent and harness-detecting: they silently exit 0 
 .meta-harness/.snapshot/
 ```
 
+**Manual rollback (v0.1.0)**: There is no dedicated `/meta-harness:rollback` command in v0.1.0. To undo the last `/build` or `/improve` apply, copy the matching snapshot back over the working tree from the project root: `cp -R .meta-harness/.snapshot/<UTC>/. .` (pick the timestamped directory matching the round you want to undo; the trailing `/.` copies hidden files too). A dedicated rollback command is a v0.2 candidate.
+
 **Atomic-write asymmetry (v0.1.0)**: The session-start healthcheck routes through `/meta-harness:manage --write-report`, which writes atomically (`.tmp.$$` → `mv`). The Stop hook uses stdout redirect because v0.1.0 evaluate does not yet expose `--write-report`; on evaluate failure mid-stream, partial JSON may land in the report file. Both hooks are default-OFF, so the blast radius is bounded. v0.2 will add `--write-report` to evaluate and symmetrize the hook.
 
 ## How to read an evaluate report
@@ -115,6 +117,8 @@ A typical output:
 Each `rationale` must cite at least one KB criterion ID (e.g., `KB-3 PER-4` for "Persona & Rules bucket has explicit scope-and-refusal statement"). The validator (`scripts/validate-eval-output.sh`) enforces ≥80-char rationale + criterion citation regex; a vacuous "looks good" rationale is rejected at parse time.
 
 Stable reproducibility: with the same KB manifest hash and the same project input, three consecutive evaluate runs produce per-axis scores within a range of 2 (max − min ≤ 2) and a total within ±2.
+
+**Out-of-box baseline**: A harness scaffolded by `/meta-harness:build` typically scores ~12–14/20 immediately after creation, with PER-3 ≥ 4/5 because `templates/persona/CLAUDE.md.tpl` ships with four pre-filled behavioral rules (multica-style). This is the design floor — `/improve` is expected to raise the score from this baseline, not start from zero. A total below ~6/20 immediately after build usually indicates that the bundled templates failed to write; check `.meta-harness/build-manifest.json` for the list of written files.
 
 ## Architecture decisions
 
