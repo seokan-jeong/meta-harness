@@ -8,6 +8,23 @@ Format follows [keepachangelog.com](https://keepachangelog.com/en/1.1.0/); versi
 
 ---
 
+## [1.0.1] — 2026-05-27
+
+Installable-plugin fix release. v1.0.0 was tagged and pushed but **not actually installable** as a Claude Code plugin — `.claude-plugin/plugin.json` used a custom schema that Claude Code silently ignored, and there was no `.claude-plugin/marketplace.json` for `/plugin marketplace add` to consume. v1.0.1 corrects both.
+
+### Fixed
+
+- **`.claude-plugin/plugin.json` rewritten to the official schema.** `commands`, `agents`, `skills` are now arrays of `./path/to/file.md` strings (per the published plugin schema), not arrays of custom-shaped objects. `hooks` is now a single path string pointing to `./hooks/hooks.json`. `author` is now a single object (was `authors` plural — Claude Code's schema uses singular). Custom fields that Claude Code does not recognize (`kb`, `scripts`, `milestones`, `future_components`, `compat`) were dropped from the manifest — the data is preserved in CHANGELOG/README/ADRs where it belongs as documentation.
+- **`.claude-plugin/marketplace.json` added.** Single-plugin marketplace named `meta-harness`, with `source: { source: "local-path", path: "./" }` pointing at this repo's root where `plugin.json` lives. Users can now `/plugin marketplace add seokan-jeong/meta-harness` followed by `/plugin install meta-harness@meta-harness`.
+- **README "Quick start" replaced with correct install instructions.** v1.0.0 README claimed users could install "from the Claude Code plugin marketplace or local clone" without documenting how; the slash-command examples were also shell-style (`claude /meta-harness:build`) rather than in-session form (`/meta-harness:build`). v1.0.1 documents the actual two-step install + corrects the in-session form.
+
+### Honest disclosure
+
+- v1.0.0 tag and GitHub Release remain in git history. They are NOT being force-overwritten; the release notes for v1.0.0 are still accurate as a "git tag" event, just not as an "installable plugin" event. Anyone who happened to install v1.0.0 the manual way (clone + symlink into `~/.claude/plugins/`) still has functional commands — the slash commands' contents were already correct; only the manifest discovery was broken.
+- Internal output-schema versions (`manage_version`, `improve_version` in the skill JSON outputs) stay at `1.0.0` since the schemas themselves did not change. Only `.claude-plugin/plugin.json` `version` and `hooks/hooks.json` `_plugin_version` bump to `1.0.1`.
+
+---
+
 ## [1.0.0] — 2026-05-26
 
 Initial release. Six implementation milestones (M1–M6) complete; nine acceptance criteria (AC-1 through AC-9) verified.
@@ -90,4 +107,5 @@ Initial release. Six implementation milestones (M1–M6) complete; nine acceptan
 
 This is the initial release; no upgrade path applies. Future minor bumps preserve all `kb_manifest_hash` values seen in shipped reports; major bumps may invalidate them and will say so explicitly under an `### KB compatibility` heading.
 
+[1.0.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.1
 [1.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.0

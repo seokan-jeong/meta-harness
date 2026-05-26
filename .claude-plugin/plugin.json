@@ -1,14 +1,13 @@
 {
   "name": "meta-harness",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Project-level Claude Code harness builder/manager/improver. Scores Persona, Capabilities, Runtime, and Meta-Governance against a static KB rubric using an LLM-as-judge evaluator.",
+  "author": {
+    "name": "seokan-jeong"
+  },
   "license": "MIT",
-  "authors": [
-    {
-      "name": "meta-harness contributors"
-    }
-  ],
   "homepage": "https://github.com/seokan-jeong/meta-harness",
+  "repository": "https://github.com/seokan-jeong/meta-harness",
   "keywords": [
     "claude-code",
     "harness",
@@ -18,110 +17,19 @@
     "agentic-loops"
   ],
   "commands": [
-    {
-      "name": "evaluate",
-      "path": "commands/evaluate.md",
-      "summary": "Score the current project's harness on 4 axes; returns strict JSON plus a short human summary.",
-      "status": "implemented",
-      "milestone": "M2"
-    },
-    {
-      "name": "build",
-      "path": "commands/build.md",
-      "summary": "Bootstrap a complete 4-bucket Claude Code harness into the current project from bundled templates; cwd-guarded with diff approval before any disk write.",
-      "status": "implemented",
-      "milestone": "M3"
-    },
-    {
-      "name": "manage",
-      "path": "commands/manage.md",
-      "summary": "Healthcheck a project harness: 4-bucket presence, KB drift versus the plugin manifest, and internal lint. Read-only; emits strict JSON bound to AC-9.",
-      "status": "implemented",
-      "milestone": "M4"
-    },
-    {
-      "name": "improve",
-      "path": "commands/improve.md",
-      "summary": "Iteratively improve a project harness via a capped 3-round (evaluate → manage → propose → approve → atomic apply → re-evaluate) loop. Two consecutive non-improvements auto-exit. AC-3 + HR-5 binding.",
-      "status": "implemented",
-      "milestone": "M5"
-    }
+    "./commands/evaluate.md",
+    "./commands/build.md",
+    "./commands/manage.md",
+    "./commands/improve.md"
   ],
   "agents": [
-    {
-      "id": "karpathy-evaluator",
-      "path": "agents/karpathy-evaluator.md",
-      "role": "harness-evaluator",
-      "summary": "Single LLM-as-judge agent that scores 4 axes from the bundled KB rubric.",
-      "milestone": "M1"
-    }
+    "./agents/karpathy-evaluator.md"
   ],
   "skills": [
-    {
-      "id": "harness-evaluate",
-      "path": "skills/harness-evaluate/SKILL.md",
-      "summary": "Procedural workflow for /meta-harness:evaluate.",
-      "milestone": "M2"
-    },
-    {
-      "id": "harness-build",
-      "path": "skills/harness-build/SKILL.md",
-      "summary": "Procedural workflow for /meta-harness:build: cwd guard, template-variable resolution, diff preview, atomic write with snapshot rollback, and AC-1 9-path verification.",
-      "milestone": "M3"
-    },
-    {
-      "id": "harness-manage",
-      "path": "skills/harness-manage/SKILL.md",
-      "summary": "Procedural workflow for /meta-harness:manage: cwd guard, 4-bucket enumeration, KB drift detection (vendored vs plugin manifest), four-rule lint, strict JSON renderer. AC-9 binding contract.",
-      "milestone": "M4"
-    },
-    {
-      "id": "harness-improve",
-      "path": "skills/harness-improve/SKILL.md",
-      "summary": "Procedural workflow for /meta-harness:improve: 3-round cap, 8-step state machine, rule-based proposer catalogue (P1–P6), stagnation auto-exit, atomic apply with snapshot rollback. AC-3 + HR-5 binding contract.",
-      "milestone": "M5"
-    }
+    "./skills/harness-evaluate/SKILL.md",
+    "./skills/harness-build/SKILL.md",
+    "./skills/harness-manage/SKILL.md",
+    "./skills/harness-improve/SKILL.md"
   ],
-  "kb": {
-    "set_version": "1.0.0",
-    "manifest_path": "docs/kb-manifest.json",
-    "manifest_hash": null,
-    "entries": [
-      "docs/theory/karpathy-context-engineering.md",
-      "docs/theory/anthropic-agentic-loops.md",
-      "docs/theory/harness-4-bucket-principles.md"
-    ],
-    "note": "manifest_hash is resolved at runtime by scripts/build-kb-manifest.sh; the per-invocation value is echoed back inside the evaluator's JSON output."
-  },
-  "scripts": {
-    "build-kb-manifest": "scripts/build-kb-manifest.sh",
-    "validate-eval-output": "scripts/validate-eval-output.sh"
-  },
-  "hooks": {
-    "enabled": false,
-    "note": "Opt-in hooks land in M6 (PLAN §2.M6, ADR-0003). Default OFF."
-  },
-  "milestones": {
-    "completed": [
-      "M1",
-      "M2",
-      "M3",
-      "M4",
-      "M5",
-      "M6"
-    ],
-    "pending": []
-  },
-  "future_components": {
-    "_comment": "Hooks land in M6. They are intentionally NOT registered in the main arrays so v1.0.0 does not advertise capabilities it does not have.",
-    "commands": [],
-    "skills": [],
-    "hooks": [
-      "session-start-healthcheck",
-      "stop-evaluate"
-    ]
-  },
-  "compat": {
-    "claude_code_min_version": "0.0.0"
-  }
+  "hooks": "./hooks/hooks.json"
 }

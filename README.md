@@ -41,27 +41,36 @@ KB sources currently bundled:
 - `docs/theory/anthropic-agentic-loops.md` (8 principles)
 - `docs/theory/harness-4-bucket-principles.md` (the master rubric — 4 axes × 5 criteria = 20 criteria)
 
+## Install
+
+Inside a Claude Code session, add this repo as a plugin marketplace, then install the `meta-harness` plugin from it:
+
+```
+/plugin marketplace add seokan-jeong/meta-harness
+/plugin install meta-harness@meta-harness
+```
+
+The first command clones this repo as a marketplace catalog; the second installs the plugin defined in `.claude-plugin/plugin.json`. After installation, the four slash commands below are available in any Claude Code session.
+
 ## Quick start
 
-```bash
-# 1. Install the plugin (from the Claude Code plugin marketplace or local clone)
-# 2. cd into a project that does NOT yet have a harness
-cd ~/code/my-project
+Once installed, inside a Claude Code session at your project root:
 
-# 3. Bootstrap a complete harness
-claude /meta-harness:build
+```
+# 1. Bootstrap a complete harness into the current project
+/meta-harness:build
 # → cwd guard prompt → diff preview → atomic write of 9 files
 
-# 4. Score it
-claude /meta-harness:evaluate
+# 2. Score it
+/meta-harness:evaluate
 # → JSON report with 4-axis scores 0-5, total 0-20, criterion-by-criterion rationale
 
-# 5. (Later) Healthcheck without re-scoring
-claude /meta-harness:manage --json-only
+# 3. (Later) Healthcheck without re-scoring
+/meta-harness:manage --json-only
 # → bucket presence + KB drift + lint warnings
 
-# 6. (Iterative) Improve based on the score
-claude /meta-harness:improve
+# 4. (Iterative) Improve based on the score
+/meta-harness:improve
 # → up to 3 rounds, each with a diff preview + your approval before apply
 ```
 
