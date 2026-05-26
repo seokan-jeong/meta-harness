@@ -1,6 +1,6 @@
 {
   "name": "meta-harness",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Project-level Claude Code harness builder/manager/improver. Scores Persona, Capabilities, Runtime, and Meta-Governance against a static KB rubric using an LLM-as-judge evaluator.",
   "license": "MIT",
   "authors": [
@@ -8,7 +8,7 @@
       "name": "meta-harness contributors"
     }
   ],
-  "homepage": "https://github.com/seokan/meta-harness",
+  "homepage": "https://github.com/seokan-jeong/meta-harness",
   "keywords": [
     "claude-code",
     "harness",
@@ -113,7 +113,7 @@
     "pending": []
   },
   "future_components": {
-    "_comment": "Hooks land in M6. They are intentionally NOT registered in the main arrays so v0.1.0 does not advertise capabilities it does not have.",
+    "_comment": "Hooks land in M6. They are intentionally NOT registered in the main arrays so v1.0.0 does not advertise capabilities it does not have.",
     "commands": [],
     "skills": [],
     "hooks": [

@@ -25,11 +25,11 @@ Plus a single LLM-as-judge evaluator agent (`agents/karpathy-evaluator.md`) that
 
 **TL;DR**: plugin SemVer tracks code changes; KB `set_version` tracks rubric-content changes. They are decoupled for one practical reason — to make six-month-old evaluate results reproducible. Each evaluate output embeds a `kb_manifest_hash`; that single string pins the exact rubric used at scoring time, even after the plugin upgrades.
 
-The KB is **separate from the plugin's SemVer.** The current KB set version is `1.0.0`. The plugin version is `0.1.0`. Both are tracked in `.claude-plugin/plugin.json`:
+The KB is **separate from the plugin's SemVer.** The current KB set version is `1.0.0`. The plugin version is `1.0.0`. Both are tracked in `.claude-plugin/plugin.json`:
 
 ```json
 {
-  "version": "0.1.0",
+  "version": "1.0.0",
   "kb": { "set_version": "1.0.0", "manifest_path": "docs/kb-manifest.json" }
 }
 ```
@@ -92,9 +92,9 @@ The hooks themselves are idempotent and harness-detecting: they silently exit 0 
 .meta-harness/.snapshot/
 ```
 
-**Manual rollback (v0.1.0)**: There is no dedicated `/meta-harness:rollback` command in v0.1.0. To undo the last `/build` or `/improve` apply, copy the matching snapshot back over the working tree from the project root: `cp -R .meta-harness/.snapshot/<UTC>/. .` (pick the timestamped directory matching the round you want to undo; the trailing `/.` copies hidden files too). A dedicated rollback command is a v0.2 candidate.
+**Manual rollback (v1.0.0)**: There is no dedicated `/meta-harness:rollback` command in v1.0.0. To undo the last `/build` or `/improve` apply, copy the matching snapshot back over the working tree from the project root: `cp -R .meta-harness/.snapshot/<UTC>/. .` (pick the timestamped directory matching the round you want to undo; the trailing `/.` copies hidden files too). A dedicated rollback command is a v1.1 candidate.
 
-**Atomic-write asymmetry (v0.1.0)**: The session-start healthcheck routes through `/meta-harness:manage --write-report`, which writes atomically (`.tmp.$$` → `mv`). The Stop hook uses stdout redirect because v0.1.0 evaluate does not yet expose `--write-report`; on evaluate failure mid-stream, partial JSON may land in the report file. Both hooks are default-OFF, so the blast radius is bounded. v0.2 will add `--write-report` to evaluate and symmetrize the hook.
+**Atomic-write asymmetry (v1.0.0)**: The session-start healthcheck routes through `/meta-harness:manage --write-report`, which writes atomically (`.tmp.$$` → `mv`). The Stop hook uses stdout redirect because v1.0.0 evaluate does not yet expose `--write-report`; on evaluate failure mid-stream, partial JSON may land in the report file. Both hooks are default-OFF, so the blast radius is bounded. v1.1 will add `--write-report` to evaluate and symmetrize the hook.
 
 ## How to read an evaluate report
 

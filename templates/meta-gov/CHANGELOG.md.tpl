@@ -16,7 +16,7 @@ This separation satisfies the MG-2 criterion in the 4-bucket rubric.
 
 ### Added
 
-- Bootstrapped harness via `meta-harness` v0.1.0 (`/meta-harness:build`).
+- Bootstrapped harness via `meta-harness` v1.0.0 (`/meta-harness:build`).
 - KB set `{{kb_set_version}}` pinned at manifest hash `{{kb_manifest_hash}}`.
 - 4-bucket layout: Persona (`CLAUDE.md`, `agents/`), Capabilities (`skills/`,
   `commands/`), Runtime (`.claude/`, `hooks/`), Meta-Governance (`README.md`,

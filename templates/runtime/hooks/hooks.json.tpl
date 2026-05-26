@@ -1,5 +1,5 @@
 {
-  "_generated_by": "meta-harness v0.1.0 (/meta-harness:build)",
+  "_generated_by": "meta-harness v1.0.0 (/meta-harness:build)",
   "_generated_at": "{{generated_at}}",
   "_project_name": "{{project_name}}",
   "_format_note": "This file uses a simple {\"hooks\": [...]} registry shape. If your Claude Code runtime expects a different schema, adapt this file accordingly. Each entry must have an `enabled` boolean; per ADR-0003 of meta-harness, defaults ship OFF.",

@@ -44,7 +44,7 @@ out="${reports_dir}/${ts}-evaluate.json"
 
 # Evaluate doesn't yet expose --write-report (that's a manage-only flag), so
 # we redirect stdout. --json-only suppresses the human summary. --silent is
-# not a documented evaluate flag in v0.1.0; if your build's evaluate doesn't
+# not a documented evaluate flag in v1.0.0; if your build's evaluate doesn't
 # accept it, drop it without harm (the > redirect already handles stdout).
 claude /meta-harness:evaluate \
   --target "${target}" \

@@ -3,7 +3,7 @@ adr_id: ADR-0001
 title: Static Curated KB for the Vendored Harness Evaluator
 status: Accepted
 date: "{{generated_at}}"
-deciders: ["meta-harness v0.1.0 (vendored)"]
+deciders: ["meta-harness v1.0.0 (vendored)"]
 project: "{{project_name}}"
 kb_set_version: "{{kb_set_version}}"
 kb_manifest_hash: "{{kb_manifest_hash}}"

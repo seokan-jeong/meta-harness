@@ -8,7 +8,7 @@ Format follows [keepachangelog.com](https://keepachangelog.com/en/1.1.0/); versi
 
 ---
 
-## [0.1.0] — 2026-05-26
+## [1.0.0] — 2026-05-26
 
 Initial release. Six implementation milestones (M1–M6) complete; nine acceptance criteria (AC-1 through AC-9) verified.
 
@@ -34,7 +34,7 @@ Initial release. Six implementation milestones (M1–M6) complete; nine acceptan
 - **`docs/theory/anthropic-agentic-loops.md`** v1.0.0 — 8 principles from Anthropic's agentic-loops material.
 - **`docs/theory/harness-4-bucket-principles.md`** v1.0.0 — Master rubric: 4 axes × 5 criteria = 20 criteria. **Axis 1 named "Persona & Rules"** (JSON key `persona` unchanged for schema stability); a "Where do rules live?" callout in the intro documents rules as a **cross-cutting concern** scored primarily by PER-3/PER-4, with rule-shaped content also surfaced in CAP-1/3/4, RUN-1/2/3/4, and MG-3/5. Banker's rounding canonical (AK-M1-1 fix).
 - **`docs/kb-manifest.json`** v1.0.0 — Real sha256 per entry + combined_hash; builder script idempotent.
-- KB set version: **1.0.0** (matches plugin v0.1.0 initial release).
+- KB set version: **1.0.0** (matches plugin v1.0.0 initial release).
 - **`templates/persona/CLAUDE.md.tpl`** — section A renamed "Persona & Rules"; ships a **Behavioral Rules** slot pre-filled with four operational rules (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution) adapted from [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills) — a community distillation of Karpathy's agentic-engineering guidance.
 
 ### Safety
@@ -71,9 +71,9 @@ Initial release. Six implementation milestones (M1–M6) complete; nine acceptan
 - **Concurrent improve runs** — Not lock-protected. Do not run two `/meta-harness:improve` against the same target simultaneously.
 - **`--resume` flag** — Reserved; v1 specifies `IMPROVE_BAD_ARGS` if passed. Use the interactive Archive/Continue/Quit prompt instead.
 - **NFR-2 load test** — Deferred to v1.5 per F2 disposition (no fixture-project AC ships in v1).
-- **Verification model** — v0.1.0 verification is rule-based and paper-walked at each milestone gate (AK reviews per `.shinchan-docs/main-001/ak/`). No automated test runner or CI ships with the plugin. Acceptance-criteria "PASS" status in the table above reflects manual paper-walk + spec-binding (e.g., 9-path dry build, jq schema checks, mechanical state-machine simulation), not runtime CI coverage. Runtime CI is deferred to v0.2.
-- **No input-size cap on `/meta-harness:evaluate`** — Step 1 enumerates every file matching the configured globs (`agents/*.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/ADR-*.md`, etc.); no per-glob count cap and no per-file byte cap. Very large monorepos (e.g., 50+ agents, 100+ commands) may exceed the evaluator's context window, with no graceful truncation marker emitted into the output JSON. v0.2 candidate: per-glob count cap + `input_truncated` / `truncation_summary` provenance fields in evaluate output JSON so partial-input scores are self-describing.
-- **Output-masking exclusion list is under-documented (HR-4 belt-and-suspenders)** — `skills/harness-evaluate/SKILL.md` Step 1.4 documents an output-side regex (`[A-Za-z0-9+/=]{16,}`) that masks 16+ char base64-/hex-ish substrings outside `kb_citations[*].criterion_id`. The 64-char hex portion of `kb_manifest_hash` (and likely `evaluator_model_id` and `timestamp` field digits) shares that character class; a literal reading of the prose would redact them and break AC-2 check 7 (sha256 format regex). Since AC-2 PASS was paper-walked, runtime implementations are presumed to carry additional field-aware exclusions beyond `criterion_id`; the spec needs to grow the exclusion list to match. v0.2 hardening candidate.
+- **Verification model** — v1.0.0 verification is rule-based and paper-walked at each milestone gate (AK reviews per `.shinchan-docs/main-001/ak/`). No automated test runner or CI ships with the plugin. Acceptance-criteria "PASS" status in the table above reflects manual paper-walk + spec-binding (e.g., 9-path dry build, jq schema checks, mechanical state-machine simulation), not runtime CI coverage. Runtime CI is deferred to v1.1.
+- **No input-size cap on `/meta-harness:evaluate`** — Step 1 enumerates every file matching the configured globs (`agents/*.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/ADR-*.md`, etc.); no per-glob count cap and no per-file byte cap. Very large monorepos (e.g., 50+ agents, 100+ commands) may exceed the evaluator's context window, with no graceful truncation marker emitted into the output JSON. v1.1 candidate: per-glob count cap + `input_truncated` / `truncation_summary` provenance fields in evaluate output JSON so partial-input scores are self-describing.
+- **Output-masking exclusion list is under-documented (HR-4 belt-and-suspenders)** — `skills/harness-evaluate/SKILL.md` Step 1.4 documents an output-side regex (`[A-Za-z0-9+/=]{16,}`) that masks 16+ char base64-/hex-ish substrings outside `kb_citations[*].criterion_id`. The 64-char hex portion of `kb_manifest_hash` (and likely `evaluator_model_id` and `timestamp` field digits) shares that character class; a literal reading of the prose would redact them and break AC-2 check 7 (sha256 format regex). Since AC-2 PASS was paper-walked, runtime implementations are presumed to carry additional field-aware exclusions beyond `criterion_id`; the spec needs to grow the exclusion list to match. v1.1 hardening candidate.
 
 ### Internal milestones
 
@@ -90,4 +90,4 @@ Initial release. Six implementation milestones (M1–M6) complete; nine acceptan
 
 This is the initial release; no upgrade path applies. Future minor bumps preserve all `kb_manifest_hash` values seen in shipped reports; major bumps may invalidate them and will say so explicitly under an `### KB compatibility` heading.
 
-[0.1.0]: https://github.com/seokan/meta-harness/releases/tag/v0.1.0
+[1.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.0

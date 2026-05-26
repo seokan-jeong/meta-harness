@@ -6,7 +6,7 @@ invoked_by:
   - commands/example-command.md
 invokes:
   - "<TODO: name the agent(s) this skill orchestrates, e.g., agents/karpathy-evaluator>"
-generated_by: "meta-harness v0.1.0 (/meta-harness:build)"
+generated_by: "meta-harness v1.0.0 (/meta-harness:build)"
 generated_at: "{{generated_at}}"
 ---
 

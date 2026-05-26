@@ -3,7 +3,7 @@ agent_id: karpathy-evaluator
 name: Karpathy Evaluator
 role: harness-evaluator
 description: "Karpathy-class harness evaluator. Reads a target project's harness files + the meta-harness KB, returns a strict JSON score on 4 axes (Persona, Capabilities, Runtime, Meta-Governance) with per-axis rationale and KB citations."
-vendored_from: "meta-harness plugin v0.1.0 (agents/karpathy-evaluator.md)"
+vendored_from: "meta-harness plugin v1.0.0 (agents/karpathy-evaluator.md)"
 vendored_at: "{{generated_at}}"
 kb_set_version: "{{kb_set_version}}"
 kb_manifest_hash: "{{kb_manifest_hash}}"

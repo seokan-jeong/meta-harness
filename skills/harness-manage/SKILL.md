@@ -63,7 +63,7 @@ parent (i.e. `dirname/dirname` of this file). See `skills/harness-build/SKILL.md
 ```json
 {
   "schema_version": 1,
-  "manage_version": "0.1.0",
+  "manage_version": "1.0.0",
   "meta": {
     "target": "/abs/path",
     "checked_at": "2026-05-26T08:50:00Z",
@@ -77,8 +77,8 @@ parent (i.e. `dirname/dirname` of this file). See `skills/harness-build/SKILL.md
   "kb_diff": {
     "project_kb_manifest_hash": "sha256:...",
     "plugin_kb_manifest_hash": "sha256:...",
-    "project_kb_set_version": "0.1.0",
-    "plugin_kb_set_version": "0.1.0",
+    "project_kb_set_version": "1.0.0",
+    "plugin_kb_set_version": "1.0.0",
     "vendored_at": "2026-05-26T07:30:00Z",
     "drift": false
   },

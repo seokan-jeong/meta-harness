@@ -1,5 +1,5 @@
 {
-  "_generated_by": "meta-harness v0.1.0 (/meta-harness:build)",
+  "_generated_by": "meta-harness v1.0.0 (/meta-harness:build)",
   "_generated_at": "{{generated_at}}",
   "_project_name": "{{project_name}}",
   "_note": "JSON does not allow comments. The fields prefixed with underscore are provenance metadata, not Claude Code settings. Claude Code ignores unknown top-level keys; these are safe to keep, or delete them if you prefer a strict file.",

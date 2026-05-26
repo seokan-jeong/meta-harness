@@ -82,7 +82,7 @@ written to `<path>` (when `--write-report` is given):
 ```json
 {
   "schema_version": 1,
-  "manage_version": "0.1.0",
+  "manage_version": "1.0.0",
   "meta": { "target": "...", "checked_at": "...", "plugin_root": "..." },
   "healthcheck": {
     "present_buckets": ["..."],
@@ -92,8 +92,8 @@ written to `<path>` (when `--write-report` is given):
   "kb_diff": {
     "project_kb_manifest_hash": "sha256:...",
     "plugin_kb_manifest_hash": "sha256:...",
-    "project_kb_set_version": "0.1.0",
-    "plugin_kb_set_version": "0.1.0",
+    "project_kb_set_version": "1.0.0",
+    "plugin_kb_set_version": "1.0.0",
     "vendored_at": "...",
     "drift": false
   },

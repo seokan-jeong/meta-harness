@@ -7,7 +7,7 @@ allowed-tools:
   - Edit
   - Bash
 model: inherit
-generated_by: "meta-harness v0.1.0 (/meta-harness:build)"
+generated_by: "meta-harness v1.0.0 (/meta-harness:build)"
 generated_at: "{{generated_at}}"
 ---
 

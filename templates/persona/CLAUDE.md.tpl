@@ -114,7 +114,7 @@ This harness governs its own evolution through the following artifacts:
 - `docs/ADR-*.md` — architectural decisions, with at least one ADR
   (`docs/ADR-0001-static-kb-choice.md`) explaining why this harness uses a
   static curated KB.
-- Self-evaluation: this harness was bootstrapped from `meta-harness` v0.1.0.
+- Self-evaluation: this harness was bootstrapped from `meta-harness` v1.0.0.
   Re-evaluate it any time with `/meta-harness:evaluate`. Re-build or
   re-sync templates with `/meta-harness:build` (this command) or, once
   available, `/meta-harness:manage` (M4).

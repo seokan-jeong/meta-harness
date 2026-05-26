@@ -64,7 +64,7 @@ batch job, and double-digit round counts are a misuse signal.
    ```json
    {
      "schema_version": 1,
-     "improve_version": "0.1.0",
+     "improve_version": "1.0.0",
      "meta": {
        "target": "/abs/path",
        "started_at": "2026-05-26T09:30:00Z",
