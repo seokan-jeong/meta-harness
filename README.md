@@ -23,6 +23,8 @@ Plus a single LLM-as-judge evaluator agent (`agents/karpathy-evaluator.md`) that
 
 ## Knowledge base versioning
 
+**TL;DR**: plugin SemVer tracks code changes; KB `set_version` tracks rubric-content changes. They are decoupled for one practical reason — to make six-month-old evaluate results reproducible. Each evaluate output embeds a `kb_manifest_hash`; that single string pins the exact rubric used at scoring time, even after the plugin upgrades.
+
 The KB is **separate from the plugin's SemVer.** The current KB set version is `1.0.0`. The plugin version is `0.1.0`. Both are tracked in `.claude-plugin/plugin.json`:
 
 ```json

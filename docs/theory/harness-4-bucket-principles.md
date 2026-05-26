@@ -646,10 +646,23 @@ across many runs and is what `round()` does in Python 3 and IEEE 754.
 The total is then `persona + capabilities + runtime + meta_gov` and ranges
 from 0 to 20.
 
-> Footnote (non-normative): older drafts of this section recommended half-up
+> Footnote 1 (non-normative): older drafts of this section recommended half-up
 > rounding (`0.5 -> 1`). That guidance is superseded by banker's rounding above.
 > If a project's evaluator strictly requires half-up, it must say so explicitly
 > in its system prompt and accept the slightly wider AC-6 envelope.
+>
+> Footnote 2 (honest disclosure, non-normative): with 5 integer criteria per
+> axis, each axis's average is `sum_of_5_ints / 5`, so the fractional part is
+> drawn from {`.0`, `.2`, `.4`, `.6`, `.8`} — **the `.5` case is structurally
+> impossible in v1**, which means banker's rounding and half-up are
+> *equivalent in practice* under the current rubric. Banker's is still the
+> canonical rule because (a) it documents intent for forward-compatibility
+> (if a future version permits non-integer or weighted criteria, the `.5`
+> case becomes reachable and the rounding mode prevents systematic upward
+> bias under LLM-as-judge non-determinism), and (b) it matches Python's
+> `round()` and IEEE 754, so reference implementations are consistent. The
+> banker's choice has no observable effect on scores in v1; it is
+> insurance, not active machinery.
 
 **Why simple average?** With 5 criteria per axis and a 0-5 scale, the average is
 intuitive, robust to one outlier criterion, and well-aligned with the rubric's

@@ -1,7 +1,7 @@
 {
   "manifest_version": "1.0.0",
   "kb_set_version": "1.0.0",
-  "generated_at": "2026-05-26T09:27:34Z",
+  "generated_at": "2026-05-26T10:14:31Z",
   "entries": [
     {
       "kb_id": "karpathy-context-engineering",
@@ -19,9 +19,9 @@
       "kb_id": "harness-4-bucket-principles",
       "path": "docs/theory/harness-4-bucket-principles.md",
       "version": "1.0.0",
-      "sha256": "sha256:cf21d995bd779b23a6b8c7390cab42418999367b81a8028c980301b97f0bd24a"
+      "sha256": "sha256:a42c171a00d1362dcc3f5ec8acf731aabfe060ebbeb269efe2678c3069f2cc12"
     }
   ],
-  "combined_hash": "sha256:fa72e7ce2136e450a9837b12e5e3bb6b88a60e316b819f611d190762f9ac19b1",
+  "combined_hash": "sha256:e0898b728c255b87110d644240ca4984710c2b075b8683baddada84fde46843c",
   "notes": "Filled atomically by scripts/build-kb-manifest.sh. sha256 of file bytes; combined_hash = sha256 of concatenated sorted-by-kb_id entry sha256 strings."
 }
