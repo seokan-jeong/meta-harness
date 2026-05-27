@@ -1,7 +1,7 @@
 {
   "name": "meta-harness",
-  "version": "1.0.1",
-  "description": "Project-level Claude Code harness builder/manager/improver. Scores Persona, Capabilities, Runtime, and Meta-Governance against a static KB rubric using an LLM-as-judge evaluator.",
+  "version": "2.0.0",
+  "description": "Project-fit harness companion for Claude Code. Builds, evaluates, monitors, and iteratively improves a per-project harness that evolves with the project's own lifecycle. The standard of 'good harness' is the project itself, not a universal rubric.",
   "author": {
     "name": "seokan-jeong"
   },
@@ -11,10 +11,10 @@
   "keywords": [
     "claude-code",
     "harness",
+    "project-fit",
+    "lifecycle",
     "evaluator",
-    "karpathy",
-    "context-engineering",
-    "agentic-loops"
+    "self-evolving"
   ],
   "commands": [
     "./commands/evaluate.md",
@@ -23,7 +23,7 @@
     "./commands/improve.md"
   ],
   "agents": [
-    "./agents/karpathy-evaluator.md"
+    "./agents/project-fit-analyzer.md"
   ],
   "skills": [
     "./skills/harness-evaluate/SKILL.md",

@@ -2,110 +2,195 @@
 
 All notable changes to the **meta-harness** plugin are recorded in this file.
 
-The plugin's SemVer (`plugin.version`) and the bundled KB's version (`plugin.kb.set_version`) are tracked independently. A KB bump does NOT imply a plugin bump and vice versa; this preserves long-term reproducibility for projects that pinned an evaluate result to a specific `kb_manifest_hash`. KB bumps appear under their own `### KB` heading inside each release.
+Format follows [keepachangelog.com](https://keepachangelog.com/en/1.1.0/);
+versioning follows [SemVer 2.0.0](https://semver.org/).
 
-Format follows [keepachangelog.com](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer 2.0.0](https://semver.org/).
+---
+
+## [2.0.0] — 2026-05-27
+
+**Identity change.** v1 was a *generic 4-bucket harness scorer* — every
+project graded against the same rubric of "what a good harness looks like".
+v2 reframes the plugin as a **project-fit companion**: the standard of a
+good harness *is* the project itself, and the harness should evolve as the
+project's lifecycle does (script → app → polyglot service). This is a
+breaking change to outputs, agent identity, and the bundled assets.
+
+### Breaking changes
+
+- **Agent renamed**: `agents/karpathy-evaluator.md` → `agents/project-fit-analyzer.md`.
+  The agent is read-only, project-keyed, and emits fit findings rather
+  than 4-axis scores.
+- **Evaluate output schema rewritten.** The 4-axis `axes{persona,
+  capabilities, runtime, meta_gov}` object is gone. The new shape is
+  `findings[]` with categories `coverage-gap | over-coverage |
+  stale-reference | pain-pattern`, severities `high | medium | low`, and
+  a `fit_assessment.qualitative` bucket in `well-aligned | good | decent |
+  draft`. Old reports keyed to a `kb_manifest_hash` are no longer
+  reproducible against v2.
+- **Reproducibility pin changed.** `kb_manifest_hash` is retired. The new
+  pair is `(project_tree_hash, harness_state_hash)` — both sha256s,
+  computed deterministically from the project's tree and the harness's
+  enumerated files.
+- **Static KB retired.** `docs/theory/` (3 files: karpathy-context-
+  engineering, anthropic-agentic-loops, harness-4-bucket-principles) is
+  removed. The plugin no longer bundles a separate "rubric" data set —
+  the agent's prompt carries a thin meta-guide of categories.
+  `docs/kb-manifest.json` and `scripts/build-kb-manifest.sh` retired.
+- **Build output shape changed.** v1 wrote a fixed 9-file set. v2 writes
+  a **3-file core** (CLAUDE.md, agents/project-fit-analyzer.md,
+  .meta-harness/.gitignore) plus **one stub per actionable analyzer
+  finding** (skill or agent shaped). The 9-file dump no longer happens.
+- **Manage output schema rewritten.** Bucket-presence reporting is gone.
+  Manage now reports `inventory{}` (counts), `drift{}` (project_tree_hash
+  diff against the recorded state), and `lint{}` (5 rules, warnings only).
+  Manage stays LLM-free.
+- **Improve proposer rewritten.** The P1–P6 rule catalogue is gone. The
+  v2 proposer is finding-driven: it picks the single highest-priority
+  finding per round and maps it deterministically by category
+  (coverage-gap / pain-pattern → stub; stale-reference → inline edit;
+  over-coverage → delete-to-snapshot).
+- **HR-5 stagnation condition inverted.** v1 used `delta_total ≤ 0`
+  (higher score = better). v2 uses `delta_actionable ≥ 0` (lower
+  actionable-finding count = better).
+- **Snapshot path renamed.** `.meta-harness/.snapshot/` → `.meta-harness/snapshots/`.
+- **State file added.** `<target>/.meta-harness/state.json` is written by
+  build and refreshed by every improve round. Manage reads it to compute
+  the drift bit.
+- **ADRs retired.** ADR-0001 (static-KB choice) and ADR-0002 (single-
+  evaluator agent) are deleted; their rationale no longer applies. Only
+  ADR-0003 (slash + opt-in hooks) remains.
+- **Templates trimmed.** v1 shipped 11 stub files. v2 ships 4:
+  `templates/persona/CLAUDE.md.tpl`,
+  `templates/persona/agents/_stub.md.tpl`,
+  `templates/capabilities/skills/_stub/SKILL.md.tpl`,
+  `templates/meta-gov/.meta-harness/.gitignore.tpl`. Old templates
+  (example-skill, example-command, settings.json.tpl, ADR templates,
+  README/CHANGELOG templates) are removed.
+- **Harness enumeration covers Claude-Code-canonical `.claude/` paths.**
+  evaluate and manage now glob BOTH legacy top-level locations
+  (`skills/**/SKILL.md`, `agents/*.md`, `commands/*.md`, `hooks/*`) AND
+  Claude-Code-canonical locations (`.claude/skills/**/SKILL.md`,
+  `.claude/agents/**/*.md`, `.claude/commands/**/*.md`, `.claude/hooks/**`)
+  plus top-level `AGENTS.md`. Surfaced by a dogfood pass against a
+  Claude-Code-native Next.js project where 7 skills under `.claude/skills/`
+  were invisible to the v2 evaluator and the project was mis-graded as
+  "draft". Without this fix, every Claude-Code-native project would be
+  systematically under-counted on fit.
+- **Build writes stubs to `.claude/skills/` and `.claude/agents/`.** The
+  core analyzer copy now lands at `.claude/agents/project-fit-analyzer.md`,
+  and per-finding skill/agent stubs land at `.claude/skills/<slug>/SKILL.md`
+  and `.claude/agents/<slug>.md` respectively. The Claude Code runtime
+  auto-loads these locations, so freshly built stubs are immediately
+  invokable without a manual move. Legacy top-level paths still
+  evaluate-and-manage cleanly (back-compat for older harnesses) but new
+  builds go canonical.
+
+### Added
+
+- `agents/project-fit-analyzer.md` — read-only fit analyzer. Inputs:
+  `project_sketch`, `harness_state`, `(project_tree_hash, harness_state_hash)`.
+  Output: strict JSON of fit findings + qualitative bucket.
+- `--no-analyzer` flag on `/meta-harness:build` for fast offline core-only
+  scaffolds.
+- `--no-apply` flag on `/meta-harness:improve` for full dry-runs (loop
+  including diff display, no writes).
+- `state.json` round-trip between build/improve/manage as the shared
+  drift-detection record.
+- AC-9 v2: drift fixture-set — fixtures `no_record`, `tree_hash_diff`,
+  `record_corrupt` each yield `drift.drifted == true`.
+- `manage` `inventory.has_agents_md` boolean — surfaces a top-level
+  `AGENTS.md` (the project-agent advisory convention) as a first-class
+  inventory bit rather than burying it inside `agents_count`.
+- `manage` lint rule **L01 extension-fallback**: when a referenced
+  `<path>.ts` is absent, also try `<path>.tsx` before reporting; same for
+  `.js↔.jsx`, `.md↔.mdx`, `.yaml↔.yml`. Eliminates a class of false
+  positives observed during dogfood (e.g. CLAUDE.md correctly cites
+  `src/lib/mdx/components.tsx` but the regex captured `.ts` form).
+
+### Safety
+
+- **HR-1 atomic write** preserved.
+- **HR-3 cwd guard** preserved — same refusal list (`/`, `$HOME`,
+  `/tmp`, `/private/tmp`), same outer-prompt gate on build / improve.
+- **HR-4 secret deny-list** preserved: `.env*`, `id_rsa*`, `*.pem`,
+  `*.key`, `credentials.*`, `secrets.*` filtered at enumeration AND
+  post-scanned in analyzer output (16+ char base64/hex regex).
+- **HR-5 stagnation** preserved in spirit; condition inverted (see above).
+- **Injection guard** preserved: project / harness content is fed to the
+  analyzer as **data**, not as instructions.
+
+### Removed (v1 baggage)
+
+- `agents/karpathy-evaluator.md`
+- `docs/theory/` (all 3 files)
+- `docs/kb-manifest.json`
+- `scripts/build-kb-manifest.sh`
+- `scripts/validate-eval-output.sh`
+- `docs/adr/ADR-0001-static-kb-choice.md`
+- `docs/adr/ADR-0002-single-evaluator-agent.md`
+
+### Migration
+
+There is no in-place migration from a v1 harness to a v2 harness. The
+recommended path:
+
+1. Move your v1 `.meta-harness/` contents aside (e.g., to
+   `.meta-harness-v1-archive/`).
+2. Run `/meta-harness:build` with the v2 plugin; let it produce a new
+   3-file core + per-finding stubs against your current project shape.
+3. Run `/meta-harness:evaluate` to confirm fit.
+4. Optionally run `/meta-harness:improve` for a 3-round adjustment.
+
+Old v1 evaluate JSON outputs and their `kb_manifest_hash` values are
+no longer reproducible. v1's bundled rubric tags (e.g., `PER-3`) are
+not recognized by v2.
 
 ---
 
 ## [1.0.1] — 2026-05-27
 
-Installable-plugin fix release. v1.0.0 was tagged and pushed but **not actually installable** as a Claude Code plugin — `.claude-plugin/plugin.json` used a custom schema that Claude Code silently ignored, and there was no `.claude-plugin/marketplace.json` for `/plugin marketplace add` to consume. v1.0.1 corrects both.
+Installable-plugin fix release. v1.0.0 was tagged and pushed but not
+actually installable as a Claude Code plugin — `.claude-plugin/plugin.json`
+used a custom schema that Claude Code silently ignored, and there was no
+`.claude-plugin/marketplace.json` for `/plugin marketplace add` to consume.
+v1.0.1 corrects both.
 
 ### Fixed
 
-- **`.claude-plugin/plugin.json` rewritten to the official schema.** `commands`, `agents`, `skills` are now arrays of `./path/to/file.md` strings (per the published plugin schema), not arrays of custom-shaped objects. `hooks` is now a single path string pointing to `./hooks/hooks.json`. `author` is now a single object (was `authors` plural — Claude Code's schema uses singular). Custom fields that Claude Code does not recognize (`kb`, `scripts`, `milestones`, `future_components`, `compat`) were dropped from the manifest — the data is preserved in CHANGELOG/README/ADRs where it belongs as documentation.
-- **`.claude-plugin/marketplace.json` added.** Single-plugin marketplace named `meta-harness`, with `source: { source: "local-path", path: "./" }` pointing at this repo's root where `plugin.json` lives. Users can now `/plugin marketplace add seokan-jeong/meta-harness` followed by `/plugin install meta-harness@meta-harness`.
-- **README "Quick start" replaced with correct install instructions.** v1.0.0 README claimed users could install "from the Claude Code plugin marketplace or local clone" without documenting how; the slash-command examples were also shell-style (`claude /meta-harness:build`) rather than in-session form (`/meta-harness:build`). v1.0.1 documents the actual two-step install + corrects the in-session form.
-
-### Honest disclosure
-
-- v1.0.0 tag and GitHub Release remain in git history. They are NOT being force-overwritten; the release notes for v1.0.0 are still accurate as a "git tag" event, just not as an "installable plugin" event. Anyone who happened to install v1.0.0 the manual way (clone + symlink into `~/.claude/plugins/`) still has functional commands — the slash commands' contents were already correct; only the manifest discovery was broken.
-- Internal output-schema versions (`manage_version`, `improve_version` in the skill JSON outputs) stay at `1.0.0` since the schemas themselves did not change. Only `.claude-plugin/plugin.json` `version` and `hooks/hooks.json` `_plugin_version` bump to `1.0.1`.
+- `.claude-plugin/plugin.json` rewritten to the official schema. Custom
+  fields (`kb`, `scripts`, `milestones`, `future_components`, `compat`)
+  were dropped from the manifest.
+- `.claude-plugin/marketplace.json` added. Single-plugin marketplace named
+  `meta-harness`.
+- README "Quick start" replaced with correct install instructions.
 
 ---
 
 ## [1.0.0] — 2026-05-26
 
-Initial release. Six implementation milestones (M1–M6) complete; nine acceptance criteria (AC-1 through AC-9) verified.
+Initial release as a generic 4-bucket harness scorer. **Superseded by v2.0.0**
+— see Breaking changes above. The v1.0.0 entry below is preserved for
+historical reference only.
 
-### Added (Plugin)
+### Added (summary)
 
-- **`/meta-harness:evaluate`** (M2) — LLM-as-judge evaluator scoring the current project's harness on 4 axes (Persona, Capabilities, Runtime, Meta-Governance). Each axis 0–5; total 0–20. Emits strict JSON via `scripts/validate-eval-output.sh` (13 checks + per-axis rationale ≥80 chars + KB criterion citation regex).
-- **`/meta-harness:build`** (M3) — Bootstraps a complete 9-file harness from `templates/{persona,capabilities,runtime,meta-gov}/`. Cwd-guarded outer prompt + diff preview + atomic write with snapshot rollback under `.meta-harness/.snapshot/<UTC>/`.
-- **`/meta-harness:manage`** (M4) — Read-only healthcheck: 4-bucket presence enumeration, KB drift detection (vendored evaluator frontmatter vs. plugin `docs/kb-manifest.json`), 4-rule lint (L01–L04). Emits strict JSON bound to AC-9; hook-callable (no interactive prompt).
-- **`/meta-harness:improve`** (M5) — Iterative 3-round loop of (evaluate → manage → propose → approve → atomic apply → re-evaluate). Rule-based proposer catalogue P1–P6 (no LLM call). 4th-round attempt prints `"max 3 rounds reached"` and exits; two consecutive non-improvements (`delta ≤ 0`) trigger stagnation auto-exit. 3-tier consent: outer cwd prompt (mandatory) + per-round approval (`--auto`-skippable) + cap+stagnation.
-- **`agents/karpathy-evaluator.md`** (M1) — Single shared LLM-as-judge agent; all four commands invoke it directly or transitively per ADR-0002.
-- **`skills/harness-{evaluate,build,manage,improve}/SKILL.md`** — Procedural workflows owning the state machines, JSON schemas, and contract bindings. Slash commands are thin triggers.
-- **`scripts/build-kb-manifest.sh`** — Pure-bash KB manifest builder (Python-free per AK-M2-1 fix); produces `docs/kb-manifest.json` with per-entry sha256 + combined_hash.
-- **`scripts/validate-eval-output.sh`** — 13-check JSON validator for evaluate output; enforces criterion-citation regex.
-- **`templates/`** — 11 stub files spanning the 4 buckets; used by `/meta-harness:build` and the P1 proposal in improve. Whitelisted placeholders only: `{{project_name}}`, `{{kb_set_version}}`, `{{kb_manifest_hash}}`, `{{generated_at}}`.
-- **`hooks/`** — Two opt-in hook scripts (`session-start-healthcheck.sh`, `stop-evaluate.sh`) plus `hooks/hooks.json` registry. Both `enabled: false` per ADR-0003 default-OFF policy.
-- **`docs/adr/ADR-0001-static-kb-choice.md`** — End-user mirror of the static-KB architectural decision.
-- **`docs/adr/ADR-0002-single-evaluator-agent.md`** — End-user mirror of the single-evaluator-agent decision (single agent, single LLM call topology).
-- **`docs/adr/ADR-0003-slash-plus-optin-hooks.md`** — End-user mirror of the slash-commands-primary + opt-in-hooks decision.
-
-### KB
-
-- **`docs/theory/karpathy-context-engineering.md`** v1.0.0 — **9 principles** distilled from Karpathy's public writing on context engineering. Last synced 2026-05-26 against Sequoia Ascent 2026 ("Software is Changing (Again)") and his announcement of joining Anthropic's pre-training team (2026-05-19). Intro reframes the KB around the **Software 3.0** mapping (weights = CPU, context window = RAM, LLM = interpreter) and the **agentic-engineering vs. vibe-coding** distinction; P3 adds the verifiability formula `capability_spike ≈ verifiability × training_attention × data_coverage × economic_value`; P4 adds **agent-native infrastructure** (MCP, sensors/actuators, structured logs); **new P9 — jagged intelligence** — captures Karpathy's directive to empirically profile your application's circuits rather than assume smooth capability.
-- **`docs/theory/anthropic-agentic-loops.md`** v1.0.0 — 8 principles from Anthropic's agentic-loops material.
-- **`docs/theory/harness-4-bucket-principles.md`** v1.0.0 — Master rubric: 4 axes × 5 criteria = 20 criteria. **Axis 1 named "Persona & Rules"** (JSON key `persona` unchanged for schema stability); a "Where do rules live?" callout in the intro documents rules as a **cross-cutting concern** scored primarily by PER-3/PER-4, with rule-shaped content also surfaced in CAP-1/3/4, RUN-1/2/3/4, and MG-3/5. Banker's rounding canonical (AK-M1-1 fix).
-- **`docs/kb-manifest.json`** v1.0.0 — Real sha256 per entry + combined_hash; builder script idempotent.
-- KB set version: **1.0.0** (matches plugin v1.0.0 initial release).
-- **`templates/persona/CLAUDE.md.tpl`** — section A renamed "Persona & Rules"; ships a **Behavioral Rules** slot pre-filled with four operational rules (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution) adapted from [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills) — a community distillation of Karpathy's agentic-engineering guidance.
-
-### Safety
-
-- **HR-1 atomic write** — All disk writes use `.tmp.$$` → `mv`. Build and improve additionally snapshot pre-overwrite files for rollback.
-- **HR-3 cwd guard** — Refuses `/`, `$HOME`, `/tmp`, `/private/tmp`. Symlinks resolved with `pwd -P`. Build + improve add outer confirmation prompt.
-- **HR-4 secret deny-list** — `.env`, `id_rsa`, `.git/`, regex-matched secrets never enter evaluator input. AC-7 verified with `API_KEY=test123` fixture.
-- **HR-5 stagnation auto-exit** — Improve terminates immediately on 2 consecutive `delta ≤ 0` rounds. Honest disclosure: `delta == 0` counts as non-improvement; `delta` is undefined for user-declined rounds (streak not advanced).
-
-### Acceptance Criteria (all verified)
-
-| AC | Bound to | Status | Verification |
-|----|----------|--------|--------------|
-| AC-1 | M3 build 9 files | ✅ PASS | 9-path dry-build; settings.json + hooks.json parse via jq |
-| AC-2 | M2 evaluator JSON schema | ✅ PASS | 13/13 validate-eval-output checks + 8 negative tests rejected |
-| AC-3 | M5 improve cap | ✅ PASS | `"max 3 rounds reached"` stdout + `rounds.length == 3` + `meta.exit_reason == "max_rounds_reached"` paper-walked |
-| AC-4 | M1 KB frontmatter | ✅ PASS | 9 frontmatter lines (source/version/last_synced) across 3 KB files |
-| AC-5 | M6 hooks default OFF | ✅ PASS | 4 command files exist; `jq '.hooks[].enabled'` yields only `false` |
-| AC-6 | M2 reproducibility | ✅ Procedure documented | `range max − min ≤ 2` over 3 runs; operator-run gate (F4 disposition: range form unified) |
-| AC-7 | M2 secret deny-list | ✅ PASS | 13 drop / 5 keep classified; `grep -F 'test123'` on output yields 0 |
-| AC-8 | M3 cwd guard + atomic | ✅ PASS | Step 0 + Step 3 gates each independently abort all Step 4 writes |
-| AC-9 | M4 manage bucket presence | ✅ PASS | 5/5 paper-walk scenarios (full + 4 single-bucket-removed fixtures) |
+- 4-bucket evaluator (`agents/karpathy-evaluator.md`) — 4 axes × 5
+  criteria = 20 criteria, total 0–20.
+- `/meta-harness:{build,evaluate,manage,improve}` slash commands.
+- Static KB under `docs/theory/` — 9 + 8 + 20 = 37 principles synthesized
+  from Karpathy / Anthropic public writing.
+- Templates spanning the 4 buckets; whitelisted placeholders.
+- Two opt-in hooks (default OFF).
 
 ### Architecture decisions
 
-- [ADR-0001 Static Curated KB](docs/adr/ADR-0001-static-kb-choice.md) — KB is bundled, not dynamically fetched. Reproducibility ★, offline ★, KB ageing is the trade-off (mitigated by `last_synced` + CHANGELOG KB heading).
-- [ADR-0002 Single Evaluator Agent](docs/adr/ADR-0002-single-evaluator-agent.md) — All four commands share one `karpathy-evaluator.md`. Coherent rubric application + simpler context-pinning.
-- [ADR-0003 Slash + Opt-in Hooks](docs/adr/ADR-0003-slash-plus-optin-hooks.md) — Slash commands are the primary trigger; hooks ship `enabled: false`. Default-permissive hooks are a footgun for LLM-cost operations.
-
-### Limitations / Known v2 candidates
-
-- **Customization axes** (OQ-1) — Per-language, per-stack, per-team rubric overrides not supported in v1; the 4-bucket rubric is uniform across projects.
-- **LLM-based improve proposer** — v1 proposer is rule-based (P1–P6, deterministic). v2 may add LLM proposals at the cost of AC-3 determinism.
-- **Concurrent improve runs** — Not lock-protected. Do not run two `/meta-harness:improve` against the same target simultaneously.
-- **`--resume` flag** — Reserved; v1 specifies `IMPROVE_BAD_ARGS` if passed. Use the interactive Archive/Continue/Quit prompt instead.
-- **NFR-2 load test** — Deferred to v1.5 per F2 disposition (no fixture-project AC ships in v1).
-- **Verification model** — v1.0.0 verification is rule-based and paper-walked at each milestone gate (AK reviews per `.shinchan-docs/main-001/ak/`). No automated test runner or CI ships with the plugin. Acceptance-criteria "PASS" status in the table above reflects manual paper-walk + spec-binding (e.g., 9-path dry build, jq schema checks, mechanical state-machine simulation), not runtime CI coverage. Runtime CI is deferred to v1.1.
-- **No input-size cap on `/meta-harness:evaluate`** — Step 1 enumerates every file matching the configured globs (`agents/*.md`, `commands/*.md`, `skills/**/SKILL.md`, `docs/ADR-*.md`, etc.); no per-glob count cap and no per-file byte cap. Very large monorepos (e.g., 50+ agents, 100+ commands) may exceed the evaluator's context window, with no graceful truncation marker emitted into the output JSON. v1.1 candidate: per-glob count cap + `input_truncated` / `truncation_summary` provenance fields in evaluate output JSON so partial-input scores are self-describing.
-- **Output-masking exclusion list is under-documented (HR-4 belt-and-suspenders)** — `skills/harness-evaluate/SKILL.md` Step 1.4 documents an output-side regex (`[A-Za-z0-9+/=]{16,}`) that masks 16+ char base64-/hex-ish substrings outside `kb_citations[*].criterion_id`. The 64-char hex portion of `kb_manifest_hash` (and likely `evaluator_model_id` and `timestamp` field digits) shares that character class; a literal reading of the prose would redact them and break AC-2 check 7 (sha256 format regex). Since AC-2 PASS was paper-walked, runtime implementations are presumed to carry additional field-aware exclusions beyond `criterion_id`; the spec needs to grow the exclusion list to match. v1.1 hardening candidate.
-
-### Internal milestones
-
-- M1 KB + Evaluator Core (AK 14/15)
-- M2 evaluate E2E (AK 13/15)
-- M3 build (AK 12/15)
-- M4 manage + AC-9 (AK 15/15)
-- M5 improve (AK 14/15)
-- M6 Hooks + Plugin Governance (this release)
+- ADR-0001 Static Curated KB — *retired in v2*.
+- ADR-0002 Single Evaluator Agent — *retired in v2*.
+- ADR-0003 Slash + Opt-in Hooks — *still in force*.
 
 ---
 
-## Upgrade notes
-
-This is the initial release; no upgrade path applies. Future minor bumps preserve all `kb_manifest_hash` values seen in shipped reports; major bumps may invalidate them and will say so explicitly under an `### KB compatibility` heading.
-
+[2.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.0.0
 [1.0.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.1
 [1.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.0

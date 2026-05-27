@@ -6,7 +6,8 @@
 #
 # Behavior: when the current directory contains a meta-harness-built harness
 # (signal: `.meta-harness/` dir MUST exist AND at least one of `CLAUDE.md` or
-# `agents/karpathy-evaluator.md` is present — see AK-M6-4 rationale), run
+# `.claude/agents/project-fit-analyzer.md` (or the legacy top-level
+# `agents/project-fit-analyzer.md`) is present — see AK-M6-4 rationale), run
 # `/meta-harness:manage --json-only --silent --write-report` against the cwd
 # and store the JSON report under `.meta-harness/reports/`. Otherwise exit 0
 # silently — this hook MUST NOT add noise on machines that don't have
@@ -35,7 +36,9 @@ target="${PWD}"
 # leftover from a partial build) does not trigger the hook.
 is_harnessed() {
   [ -d "${target}/.meta-harness" ] \
-    && { [ -f "${target}/CLAUDE.md" ] || [ -f "${target}/agents/karpathy-evaluator.md" ]; }
+    && { [ -f "${target}/CLAUDE.md" ] \
+         || [ -f "${target}/.claude/agents/project-fit-analyzer.md" ] \
+         || [ -f "${target}/agents/project-fit-analyzer.md" ]; }
 }
 
 if ! is_harnessed; then

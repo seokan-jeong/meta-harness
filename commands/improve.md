@@ -1,6 +1,6 @@
 ---
 name: improve
-description: "Iteratively improve a project harness. Up to 3 rounds of (evaluate → manage → rule-based propose → user approval → atomic apply → re-evaluate). Stagnation auto-exit on 2 consecutive non-improvements; hard cap at 3 rounds per AC-3."
+description: "Iteratively improve a project harness toward better fit. Up to 3 rounds of (evaluate → pick top finding → propose patch → user approval → atomic apply → re-evaluate). Stagnation auto-exit on 2 consecutive non-improvements; hard cap at 3 rounds per AC-3."
 argument-hint: "[--target <path>] [--auto] [--max-rounds <n>] [--no-apply]"
 allowed-tools:
   - Read
@@ -9,71 +9,57 @@ allowed-tools:
   - Glob
   - Grep
   - Bash
+  - Task
 model: inherit
 ---
 
-# `/meta-harness:improve` — iterative harness improvement loop
+# `/meta-harness:improve` — iterative fit-improvement loop
 
-This is the thin trigger for the improve workflow. The actual state machine,
-proposer catalogue, and termination logic live in the `harness-improve`
-skill (`skills/harness-improve/SKILL.md`); this command's job is to enforce
-the cwd guard (HR-3), parse arguments, and dispatch to the skill.
+This is the thin trigger for the improve workflow. The state machine,
+proposer logic, and termination rules live in
+`skills/harness-improve/SKILL.md`. This command's job is to enforce the
+cwd guard (HR-3), parse arguments, and dispatch.
 
-Improve is the only verb in v1 that **modifies the target harness on disk**.
-Two consent gates protect against runaway edits:
+Improve is the only verb (beyond first-time build) that **modifies the
+target harness on disk**. Two consent gates protect against runaway
+edits:
 
-1. **Outer cwd prompt** (mandatory, not skippable by `--auto`): cwd is
-   shown and the operator must confirm "Proceed?" before any round runs.
-2. **Per-round approval prompt** (skippable by `--auto`): each proposal's
-   diff is displayed and the operator approves or declines before apply.
+1. **Outer cwd prompt** (mandatory, not skippable by `--auto`).
+2. **Per-round approval prompt** (skippable by `--auto`).
 
-The 3-round cap is the AC-3 binding. The stagnation auto-exit (2
-consecutive `delta ≤ 0`) is the HR-5 binding.
+The 3-round cap is the AC-3 binding. Stagnation auto-exit (2
+consecutive `delta_actionable >= 0`) is the HR-5 binding.
 
 ## When to use this
 
-Run improve when you have an existing harness, you have already inspected
-it with `/meta-harness:evaluate` or `/meta-harness:manage`, and you want
-an interactive loop to address the lowest-hanging structural issues.
-Typical situations:
+- `/meta-harness:evaluate` reports `fit_assessment.qualitative` is
+  `decent` or `draft` and you want an interactive loop to address the
+  high/medium findings.
+- `/meta-harness:manage` reports `drift.drifted == true` and you want
+  to re-align the harness without a full re-build.
 
-- **Score is below 12/20** and `/meta-harness:manage` reports missing
-  buckets or a stale vendored evaluator — improve's P1–P3 proposals can
-  fix those structurally.
-- **Healthcheck is clean but the operator wants advisory suggestions**
-  for further axis-by-axis polish. Improve's P4–P5 proposals are
-  advisory-only in v1; they print recommendations but do not auto-edit.
-
-If the target has NO harness yet, use `/meta-harness:build` first. If you
-just want a one-shot score, use `/meta-harness:evaluate`. Improve is for
-the iterative case.
+If the target has NO harness yet, use `/meta-harness:build` first. If
+you just want a one-shot fit-assessment, use `/meta-harness:evaluate`.
 
 ## Arguments
 
 | Argument | Default | Meaning |
 |----------|---------|---------|
-| `--target <path>` | current working directory | Project root to improve. Same path constraints as build/manage. Symlinks resolved with `pwd -P`. |
-| `--auto` | off | Skip the **per-round** approval prompts (treat each as `y`). Does NOT skip the **outer** cwd prompt. Intended for AC-3 testing and rare CI bootstraps. |
-| `--max-rounds <n>` | 3 | Override the AC-3 cap. Range `[1, 10]` (integer). Out-of-range values (`0`, negative, `> 10`, non-integer) all exit `IMPROVE_BAD_ARGS`. Production callers should leave this at 3. |
+| `--target <path>` | current working directory | Project root to improve. Same constraints as build/manage. |
+| `--auto` | off | Skip the **per-round** approval prompts. Does NOT skip the **outer** cwd prompt. |
+| `--max-rounds <n>` | 3 | Override AC-3 cap. Range `[1, 10]`. Out-of-range → `IMPROVE_BAD_ARGS`. |
 | `--no-apply` | off | Dry-run mode: run the full loop including evaluate + propose + diff display, but skip the apply step. `applied: false` for every round; `exit_reason: dry_run_complete`. |
-| `--resume` | off (reserved) | Reserved for v2 (continue from prior `.improve-state.json` without operator confirmation). In v1, specifying `--resume` exits `IMPROVE_BAD_ARGS` — the v1 resume path goes through the interactive Archive/Continue/Quit prompt in `harness-improve` §Round-state initialization. |
+| `--resume` | off (reserved) | Reserved for v2.x; v2.0 → `IMPROVE_BAD_ARGS`. The v2.0 resume path is the interactive Archive/Continue/Quit prompt at run start. |
 
-`--auto` and `--no-apply` together is legal — useful for "show me what
-improve would do, end-to-end, without me clicking through approvals or
-writing anything". `--max-rounds 0`, `--max-rounds -3`, `--max-rounds 11`,
-`--max-rounds abc`, and `--resume` all exit `IMPROVE_BAD_ARGS`.
+`--auto` and `--no-apply` together is legal.
 
 ## Pre-flight (HR-3) — performed BEFORE any read of the harness
 
-The command enforces the cwd guard up front; the skill re-checks (defense
-in depth).
-
-1. Resolve the target. If `--target <path>` is given, use that; otherwise
-   use `$PWD`. Resolve symlinks portably with
-   `resolved=$(cd "$target" 2>/dev/null && pwd -P)`.
+1. Resolve the target. `--target <path>` if given, else `$PWD`. Resolve
+   symlinks portably with `pwd -P`.
 2. Reject and exit `IMPROVE_CWD_REJECTED` if the resolved path is `/`,
-   `$HOME` exactly, `/tmp`, `/private/tmp`, non-existent, or a symlink to
-   any of those.
+   `$HOME` exactly, `/tmp` / `/private/tmp`, non-existent, or a symlink
+   to any of those.
 3. Show the resolved path and the planned loop bounds, then ask:
    ```
    cwd: <resolved>
@@ -82,96 +68,91 @@ in depth).
    round; --auto skips per-round prompts but not this one).
    Proceed? [y/N]
    ```
-   Default N. If the user answers N → exit `IMPROVE_CWD_REJECTED user_declined_root`.
-4. Per-round approval prompts (the SKILL.md §Step 5 gate) are the second
-   tier; AC-3 / HR-5 enforce the third tier (the cap + stagnation).
+   Default N. N → exit `IMPROVE_CWD_REJECTED user_declined_root`.
 
 ## What this command writes
 
-Two artifacts. Both writes are atomic (`.tmp.$$` → `mv`) and snapshot-backed
-where applicable:
+Two artifact classes. Both writes are atomic and snapshot-backed where
+applicable:
 
-1. **`<target>/.meta-harness/.improve-state.json`** — round-state record,
-   rewritten after every round. Schema in `skills/harness-improve/SKILL.md`
-   §Outputs.
-2. **Files changed by each applied proposal** — varies per proposal type
-   (P1: full build; P2: single-bucket stub; P3: vendored evaluator
-   refresh). Each overwrite is preceded by a snapshot copy under
-   `<target>/.meta-harness/.snapshot/<UTC>/`.
+1. **`<target>/.meta-harness/.improve-state.json`** — round-state
+   record, rewritten after every round. Schema in
+   `skills/harness-improve/SKILL.md` §Outputs.
+2. **`<target>/.meta-harness/state.json`** — refreshed after every
+   successful apply with the new `project_tree_hash` and
+   `harness_state_hash`. This is what `manage` reads for drift detection.
+3. **Files changed by each applied proposal** — varies per finding:
+   - `coverage-gap` / `pain-pattern` → new stub at `skills/<slug>/SKILL.md`
+     or `agents/<slug>.md`.
+   - `stale-reference` → in-place edit removing the dead reference.
+   - `over-coverage` → file moved into the snapshot directory (deletion).
 
-`--no-apply` skips artifact 2; artifact 1 is still written (the loop's
+`--no-apply` skips artifacts 2 and 3; artifact 1 is still written (the
 audit trail).
 
 ## Procedure (delegated)
 
-Once both the cwd guard and the outer prompt pass, this command hands off
-to the `harness-improve` skill. The skill is responsible for:
+Once both the cwd guard and the outer prompt pass, this command hands
+off to the `harness-improve` skill:
 
-1. Resolve `<plugin_root>` and inputs.
-2. Initialize round-state (archive prior `.improve-state.json` if present).
-3. Loop:
-   a. Step 1 — cap check (AC-3 binding); if exceeded, print "max N rounds reached" and exit.
-   b. Step 2 — evaluate (before_score).
-   c. Step 3 — manage (healthcheck inputs).
-   d. Step 4 — proposer (rule-based catalogue P1–P6).
-   e. Step 5 — approval gate (skippable per `--auto`).
-   f. Step 6 — atomic apply + snapshot (skipped under `--no-apply`).
-   g. Step 7 — re-evaluate (after_score).
-   h. Step 8 — record round-state, update stagnation streak, check HR-5.
-4. Finalize: write `meta.exit_reason`, summary block on stdout.
+1. Initialize round-state (archive prior `.improve-state.json` if present).
+2. Loop:
+   - Step 1 — cap check (AC-3); if exceeded, print "max N rounds
+     reached" and exit.
+   - Step 2 — evaluate (before_fit). Early-exit on `well_aligned` or
+     `no_findings_to_address`.
+   - Step 3 — pick the single top-priority finding for this round.
+   - Step 4 — compose the proposal (deterministic mapping by category).
+   - Step 5 — approval gate (skippable per `--auto`).
+   - Step 6 — atomic apply + snapshot (skipped under `--no-apply`).
+   - Step 7 — re-evaluate (after_fit), compute `delta_actionable`.
+   - Step 8 — record round-state + state.json, update stagnation
+     streak, check HR-5.
+3. Finalize: write `meta.exit_reason`, summary block on stdout.
 
 See `skills/harness-improve/SKILL.md` for the authoritative procedure
-including the proposer catalogue, the stagnation detector subtleties,
-and the rollback contract.
+including the proposer mapping by category and the rollback contract.
 
 ## Verification — AC-3 (3-round cap)
 
 ```bash
-# Bootstrap a fixture (full harness so improve has something to evaluate)
+# Bootstrap a fixture with enough coverage gaps that proposals fire 3 rounds.
 /meta-harness:build --target /tmp/m5-fixture --accept-all
+# (add fixture content here to ensure analyzer finds 3+ actionable findings)
 
-# Run improve with the default cap and auto-approve
+# Run improve with auto-approve and the default cap.
 /meta-harness:improve --target /tmp/m5-fixture --auto --max-rounds 3 \
   | tee /tmp/m5-improve.log
 
-# AC-3 Check 1: cap message present on stdout
+# AC-3 Check 1: cap message on stdout
 grep -F "max 3 rounds reached" /tmp/m5-improve.log \
-  && echo "AC-3 stdout PASS" \
   || { echo "AC-3 stdout FAIL" >&2; exit 1; }
 
 # AC-3 Check 2: state file shows exactly 3 rounds
 jq -e '.rounds | length == 3' \
-  /tmp/m5-fixture/.meta-harness/.improve-state.json \
-  && echo "AC-3 rounds-length PASS" \
-  || { echo "AC-3 rounds-length FAIL" >&2; exit 1; }
+  /tmp/m5-fixture/.meta-harness/.improve-state.json
 
 # AC-3 Check 3: exit_reason is max_rounds_reached
 jq -e '.meta.exit_reason == "max_rounds_reached"' \
-  /tmp/m5-fixture/.meta-harness/.improve-state.json \
-  && echo "AC-3 exit_reason PASS" \
-  || { echo "AC-3 exit_reason FAIL" >&2; exit 1; }
+  /tmp/m5-fixture/.meta-harness/.improve-state.json
 ```
 
-All three checks must pass for AC-3 PASS. The full procedure also
-exercises HR-5 (stagnation auto-exit) via a different fixture; see
-SKILL.md §Stagnation auto-exit contract.
+All three checks must pass. The full procedure also exercises HR-5
+(stagnation auto-exit) via a different fixture — see the skill.
 
 ## Failure modes (must surface on stderr)
 
 | Code | Meaning |
 |------|---------|
-| `IMPROVE_CWD_REJECTED` | Pre-flight refused the target (blocked path or not-a-directory), OR the user declined the outer cwd prompt. No reads or writes performed. |
-| `IMPROVE_BAD_ARGS` | Contradictory or out-of-range argv. v1-reachable examples: `--max-rounds 0`, `--max-rounds -3` (negative), `--max-rounds 11` (> 10), `--max-rounds abc` (non-integer), `--resume` present (reserved v2). Also any combination involving an unrecognized flag. |
-| `IMPROVE_ROUND_FAILED` | An evaluate / manage / apply step failed mid-round. The state file is updated to record the failed round; any partial writes have been rolled back via the snapshot. |
-| `IMPROVE_PREEMPTED` | The operator quit at the prior-state choice prompt before any round started. |
-| `IMPROVE_STATE_WRITE_FAILED` | Round completed successfully but `.meta-harness/.improve-state.json` atomic write failed. Files applied this round are NOT rolled back (they are real edits); only the audit trail is lost. |
+| `IMPROVE_CWD_REJECTED` | Pre-flight refused the target, or operator declined the outer prompt. |
+| `IMPROVE_BAD_ARGS` | Contradictory or out-of-range argv (`--max-rounds 0`, `> 10`, `--resume` present). |
+| `IMPROVE_ROUND_FAILED` | An evaluate / apply step failed mid-round. State file updated; partial writes rolled back via snapshot. |
+| `IMPROVE_PREEMPTED` | Operator quit at the prior-state choice prompt before any round started. |
+| `IMPROVE_STATE_WRITE_FAILED` | Round completed but `.improve-state.json` atomic write failed. Applied edits are NOT rolled back. |
 
-Note: `stagnation_auto_exit`, `max_rounds_reached`, `user_declined`,
-`no_proposals_available`, and `dry_run_complete` are NORMAL exit reasons
-recorded under `meta.exit_reason`. The process returns 0 in those cases;
-they are not failures. `round_apply_failed` is the only `exit_reason` that
-correlates with a non-zero exit (via `IMPROVE_ROUND_FAILED`); see
-`skills/harness-improve/SKILL.md §exit_reason vocabulary`.
+The six normal `exit_reason` values (`max_rounds_reached`,
+`stagnation_auto_exit`, `user_declined`, `no_findings_to_address`,
+`well_aligned`, `dry_run_complete`) are NOT failures — process returns 0.
 
 ## Examples
 
@@ -185,23 +166,21 @@ correlates with a non-zero exit (via `IMPROVE_ROUND_FAILED`); see
 # AC-3 cap exercise: auto-approve all per-round prompts.
 /meta-harness:improve --target /tmp/m5-fixture --auto --max-rounds 3
 
-# Diagnostic: extended loop for debugging the proposer catalogue.
+# Diagnostic: extended loop.
 /meta-harness:improve --max-rounds 5
 
 # Inspect the round-state of the last run.
-jq '.meta, (.rounds | map({round_n, delta, exit: .applied}))' \
+jq '.meta, (.rounds | map({round_n, delta_actionable, applied}))' \
   .meta-harness/.improve-state.json
 ```
 
 ## Related
 
-- `skills/harness-improve/SKILL.md` — authoritative procedural workflow,
-  including the proposer catalogue (P1–P6), state machine, stagnation
-  detector, and rollback contract.
-- `commands/evaluate.md` — invoked once per round for scoring.
-- `commands/manage.md` — invoked once per round for healthcheck-informed
-  proposal selection.
-- `commands/build.md` — invoked by the P1 proposal to bootstrap missing
-  persona buckets.
-- `.shinchan-docs/main-001/adr/ADR-0003-slash-plus-optin-hooks.md` —
-  reason hook-based auto-improve is opt-in default-OFF.
+- `skills/harness-improve/SKILL.md` — authoritative procedural workflow.
+- `commands/evaluate.md` — invoked once per round for before/after fit
+  assessment.
+- `commands/build.md` — owns the stub templates improve reuses for
+  coverage-gap / pain-pattern findings.
+- `commands/manage.md` — reads the `state.json` improve writes; the two
+  agree on drift via shared hash.
+- `ADR-0003` — reason hook-based auto-improve is opt-in default-OFF.

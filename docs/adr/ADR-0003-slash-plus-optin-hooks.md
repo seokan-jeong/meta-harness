@@ -101,7 +101,7 @@ Each slash command, when invoked:
 
 ### Shared core
 
-- Slash commands and hooks invoke the **same evaluator agent** (`agents/karpathy-evaluator.md`).
+- Slash commands and hooks invoke the **same analyzer agent** (`agents/project-fit-analyzer.md`).
 - The result JSON schema is identical across both entrypoints (the AC-2 schema).
 - Shared workflow logic lives in the skill files (`skills/harness-evaluate/SKILL.md`, etc.). Commands and hooks both reference the skill — guard logic is not duplicated.
 

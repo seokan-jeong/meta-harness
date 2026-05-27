@@ -6,11 +6,11 @@
   "plugins": [
     {
       "name": "meta-harness",
-      "description": "Project-level Claude Code harness builder/manager/improver. Scores Persona, Capabilities, Runtime, and Meta-Governance against a static KB rubric using an LLM-as-judge evaluator.",
+      "description": "Project-fit harness companion for Claude Code. Builds, evaluates, monitors, and iteratively improves a per-project harness that evolves with the project's own lifecycle.",
       "source": {
         "source": "github",
         "repo": "seokan-jeong/meta-harness",
-        "ref": "v1.0.1"
+        "ref": "v2.0.0"
       }
     }
   ]

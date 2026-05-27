@@ -2,31 +2,33 @@
 
 # meta-harness
 
-### Score, build, and improve project-level Claude Code harnesses<br/>against a curated theory of *what a good harness looks like*.
+### A project-fit companion for Claude Code harnesses<br/>that *evolves alongside* your project's own lifecycle.
 
-[![Plugin](https://img.shields.io/badge/plugin-v1.0.1-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
-[![Knowledge Base](https://img.shields.io/badge/KB-v1.0.0-16a34a?style=flat-square)](docs/kb-manifest.json)
+[![Plugin](https://img.shields.io/badge/plugin-v2.0.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-737373?style=flat-square)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-d97706?style=flat-square)](https://claude.com/claude-code)
 [![Status](https://img.shields.io/badge/status-stable-success?style=flat-square)](CHANGELOG.md)
 
 </div>
 
-> **meta-harness** treats *your project* as the system under test. It does not modify your code — it inspects the structural scaffolding around your code (`CLAUDE.md`, agent definitions, skill registry, hooks, governance docs) and grades that scaffolding against a rubric synthesized from **Karpathy's context-engineering writing**, **Anthropic's agentic-loops guidance**, and a derived **4-bucket framework**.
+> **meta-harness** treats *your project* as the yardstick. There is no global
+> rubric of "good harness". Instead, the plugin builds, evaluates, monitors,
+> and iteratively improves a **per-project** harness — `CLAUDE.md`, `agents/`,
+> `skills/`, `commands/`, `hooks/` — so that as the project grows from a
+> Node.js script into a Next.js app into a polyglot service, the harness
+> reshapes itself to match.
 
 ---
 
 ## Contents
 
 - [At a glance](#at-a-glance)
-- [Why project-level, not global?](#why-project-level-not-global)
-- [The 4-bucket rubric](#the-4-bucket-rubric)
+- [Why per-project, not global?](#why-per-project-not-global)
 - [The four commands](#the-four-commands)
 - [The improve loop](#the-improve-loop)
 - [Install](#install)
 - [Quick start](#quick-start)
 - [How to read an evaluate report](#how-to-read-an-evaluate-report)
-- [Knowledge base versioning](#knowledge-base-versioning)
 - [Opt-in hooks (default OFF)](#opt-in-hooks-default-off)
 - [Safety contract](#safety-contract)
 - [Architecture decisions](#architecture-decisions)
@@ -38,56 +40,38 @@
 
 |                          |                                                                          |
 | ------------------------ | ------------------------------------------------------------------------ |
-| **System under test**    | Your *harness* — `CLAUDE.md`, `agents/`, `skills/`, `hooks/`, governance |
+| **System under test**    | Your *harness* — `CLAUDE.md`, `agents/`, `skills/`, `commands/`, `hooks/` |
 | **What never gets touched** | Your application code                                                 |
-| **How it scores**        | LLM-as-judge against a static, versioned KB                              |
-| **Score shape**          | 4 axes × 5 criteria = 20 criteria, total `0–20`                          |
-| **Output**               | Strict JSON + criterion-cited rationale                                  |
-| **Reproducibility**      | Each result embeds the exact `kb_manifest_hash` used                     |
+| **Standard of fit**      | **The project itself** — not a universal rubric                          |
+| **How it scores**        | LLM-as-judge fit findings, keyed to actual project shape                 |
+| **Output**               | Strict JSON: coverage gaps · over-coverage · stale refs · pain patterns  |
+| **Reproducibility**      | Each result embeds `(project_tree_hash, harness_state_hash)`             |
 | **New network surface**  | Zero — only the Claude Code host's transport                             |
 | **Disk safety**          | Atomic writes, cwd-guarded, snapshot rollback                            |
 
 ---
 
-## Why project-level, not global?
+## Why per-project, not global?
 
-Global `~/.claude/` harnesses encode *your* habits across all projects. They drift, they collide with team conventions, and they make it hard to onboard collaborators who don't share your tooling.
+A Claude Code harness that scores well in the abstract may still be the
+**wrong** harness for *your* project. A solo Node.js script does not need
+the same skills as a Next.js app, which does not need the same agents as a
+multi-service Dart + Python repo.
 
-**meta-harness inverts the model** — each project gets a project-local harness that is:
+A harness that doesn't move when the project moves becomes dead weight —
+stale skills triggered by routes that no longer exist, agents fluent in a
+framework you abandoned, refusal rules guarding directories that have been
+renamed.
 
+**meta-harness inverts the model.** Each project gets a project-local
+harness that is:
+
+- **Generated *from* the project's shape** · not a fixed template dump
+- **Re-evaluated against the project's *current* state** · not yesterday's
+- **Improved one finding at a time** · with a diff preview and your approval
 - **Versioned alongside its code** · no hidden global state
-- **Customized to its stack** · Python, Rust, Flutter, whatever shape the project takes
-- **Verifiable against a shared rubric** · same yardstick, different shapes
 
----
-
-## The 4-Bucket Rubric
-
-Every harness is scored on four axes, each with five criteria.
-
-```mermaid
-flowchart TD
-    H["Your Project Harness"]
-    H --> A1["Persona &amp; Rules<br/><b>0 – 5</b>"]
-    H --> A2["Capabilities<br/><b>0 – 5</b>"]
-    H --> A3["Runtime<br/><b>0 – 5</b>"]
-    H --> A4["Meta-Governance<br/><b>0 – 5</b>"]
-
-    A1 --> D1["Identity scope<br/>Refusal policy<br/>Behavioral rules<br/>Voice &amp; tone<br/>Failure modes"]
-    A2 --> D2["Tool inventory<br/>Skill registry<br/>Subagent map<br/>External deps<br/>Capability bounds"]
-    A3 --> D3["Trigger surface<br/>Atomic writes<br/>Cwd guards<br/>Rollback path<br/>Error semantics"]
-    A4 --> D4["KB versioning<br/>ADR trail<br/>Lint discipline<br/>Self-tests<br/>Drift detection"]
-
-    classDef bucket fill:#1e40af,stroke:#1e3a8a,color:#fff,font-weight:bold
-    classDef criteria fill:#f3f4f6,stroke:#9ca3af,color:#111
-    classDef root fill:#0f172a,stroke:#020617,color:#fff,font-weight:bold
-    class H root
-    class A1,A2,A3,A4 bucket
-    class D1,D2,D3,D4 criteria
-```
-
-> A fresh `/meta-harness:build` typically scores **12–14 / 20** out of the box.
-> The design floor: `PER-3 ≥ 4/5` because the persona template ships pre-filled with four behavioral rules.
+The slogan: *the standard of a good harness is the project, not a rubric.*
 
 ---
 
@@ -95,14 +79,15 @@ flowchart TD
 
 Four slash commands, each a thin trigger over a procedural skill.
 
-| Command                  | What it does                                                                                          | Side effects                                                       | Binds                |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------- |
-| `/meta-harness:build`    | Bootstraps a complete 4-bucket harness from bundled templates.                                        | Writes 9 files · cwd-guard · diff preview · outer approval gate.   | `M3 AC-1 AC-8`       |
-| `/meta-harness:evaluate` | Scores the current harness on 4 axes via LLM-as-judge.                                                | Emits strict JSON + short summary. No disk writes by default.      | `M2 AC-2 AC-6 AC-7`  |
-| `/meta-harness:manage`   | Read-only healthcheck: bucket presence, KB drift, internal lint.                                      | Hook-callable. Optional `--write-report`.                          | `M4 AC-9`            |
-| `/meta-harness:improve`  | Iterative 3-round loop: evaluate → propose → approve → atomic apply → re-evaluate.                    | Stagnation auto-exit at 2 consecutive non-improvements.            | `M5 AC-3 HR-5`       |
+| Command                  | What it does                                                                                                | Side effects                                                       | Binds                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------- |
+| `/meta-harness:build`    | Scaffolds a project-tailored harness: 3-file core + per-finding stubs.                                      | Writes only on approval · cwd-guard · diff preview · outer gate.   | `M3 AC-1 AC-8`       |
+| `/meta-harness:evaluate` | LLM-as-judge fit assessment of the current harness against the project.                                     | Emits strict JSON + short summary. No disk writes by default.      | `M2 AC-2 AC-6 AC-7`  |
+| `/meta-harness:manage`   | Read-only LLM-free healthcheck: inventory, fit-drift via hash, internal lint.                               | Hook-callable. Optional `--write-report`.                          | `M4 AC-9`            |
+| `/meta-harness:improve`  | Up to 3 rounds: pick top finding · propose patch · approve · atomic apply · re-evaluate.                    | Stagnation auto-exit on 2 consecutive non-improvements.            | `M5 AC-3 HR-5`       |
 
-All four commands invoke a single LLM-as-judge evaluator agent (`agents/karpathy-evaluator.md`) directly or transitively.
+`build` and `improve` are the only commands that modify disk. `manage` is
+hook-callable and LLM-free; `evaluate` is LLM-as-judge but read-only.
 
 ---
 
@@ -114,29 +99,43 @@ sequenceDiagram
     actor U as You
     participant I as /improve
     participant E as evaluate
-    participant M as manage
+    participant P as Propose (1 finding)
     participant A as Apply (atomic + snapshot)
 
     U->>I: invoke
     loop up to 3 rounds
-        I->>E: score current harness
-        E-->>I: JSON + rationale
-        I->>M: lint + drift check
-        M-->>I: clean / warnings
-        I->>U: propose patch (diff preview)
+        I->>E: fit-evaluate (before)
+        E-->>I: JSON findings + qualitative
+        I->>P: pick top high/medium finding
+        P-->>I: stub-write OR inline edit OR delete-to-snapshot
+        I->>U: diff preview
         U->>I: approve / reject
         alt approved
             I->>A: write
             A-->>I: snapshot saved
-            I->>E: re-score
-            E-->>I: new total
+            I->>E: fit-evaluate (after)
+            E-->>I: delta_actionable
         else rejected
             I-->>U: skip round
         end
-        Note over I: stagnation guard —<br/>exit on 2× non-improvement
+        Note over I: stagnation guard —<br/>2× non-improvement → exit
     end
     I-->>U: final report
 ```
+
+The proposer is deterministic by finding category:
+
+| Finding category | Proposed action                                                                  |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `coverage-gap`   | Generate `.claude/skills/<slug>/SKILL.md` or `.claude/agents/<slug>.md` stub     |
+| `pain-pattern`   | Same — coverage of a recurring friction.                                         |
+| `stale-reference` | In-place edit removing the dead reference.                                      |
+| `over-coverage`  | Move the file into `.meta-harness/snapshots/`.                                   |
+
+Stubs land in the `.claude/` canonical locations because the Claude Code
+runtime auto-loads them from there. `evaluate` and `manage` enumerate
+BOTH `.claude/{skills,agents,commands,hooks}/` AND the legacy top-level
+counterparts, so older harnesses keep working.
 
 ---
 
@@ -151,36 +150,41 @@ Inside a Claude Code session:
 
 | Step                | What happens                                                          |
 | ------------------- | --------------------------------------------------------------------- |
-| `marketplace add`   | Clones this repo as a marketplace catalog                             |
-| `plugin install`    | Installs the plugin defined in `.claude-plugin/plugin.json`           |
+| `marketplace add`   | Registers this repo as a marketplace catalog.                         |
+| `plugin install`    | Installs the plugin defined in `.claude-plugin/plugin.json`.          |
 
-After installation the four slash commands are available in any Claude Code session.
+After installation the four slash commands are available in any Claude Code
+session.
 
 ---
 
 ## Quick start
 
-Once installed, at your project root:
+At your project root:
 
 ```bash
-# 1 ── Bootstrap a complete harness into the current project
+# 1 ── Bootstrap a project-tailored harness
 /meta-harness:build
-#  → cwd guard prompt → diff preview → atomic write of 9 files
+#  → cwd guard prompt → analyzer-driven gap discovery →
+#    diff preview → atomic write of (3-file core + per-finding stubs)
 
-# 2 ── Score it
+# 2 ── Get a fit-assessment
 /meta-harness:evaluate
-#  → JSON: 4-axis scores 0–5, total 0–20, criterion-by-criterion rationale
+#  → JSON: findings by category × severity, qualitative bucket
+#    (well-aligned / good / decent / draft)
 
-# 3 ── Healthcheck without re-scoring (cheap, no LLM cost)
+# 3 ── Cheap healthcheck (no LLM cost)
 /meta-harness:manage --json-only
-#  → bucket presence + KB drift + lint warnings
+#  → inventory + drift bit + lint warnings
 
 # 4 ── Iteratively improve
 /meta-harness:improve
-#  → up to 3 rounds, each with a diff preview + your approval before apply
+#  → up to 3 rounds, each with diff preview + your approval before apply
 ```
 
-> All four commands respect a **cwd guard** (HR-3): they refuse to operate against `/`, `$HOME`, `/tmp`, or `/private/tmp`. `build` and `improve` additionally show an outer confirmation prompt before any disk write.
+> All four commands respect a **cwd guard** (HR-3): they refuse to operate
+> against `/`, `$HOME`, `/tmp`, or `/private/tmp`. `build` and `improve`
+> additionally show an outer confirmation prompt before any disk write.
 
 ---
 
@@ -188,62 +192,46 @@ Once installed, at your project root:
 
 ```jsonc
 {
-  "kb_manifest_hash":   "sha256:...",        // ← pins reproducibility
-  "evaluator_model_id": "claude-opus-4-7",
-  "axes": {
-    "persona":      { "score": 4, "rationale": "..." },
-    "capabilities": { "score": 3, "rationale": "..." },
-    "runtime":      { "score": 4, "rationale": "..." },
-    "meta_gov":     { "score": 3, "rationale": "..." }
+  "schema_version": 1,
+  "project_tree_hash":   "sha256:...",  // project shape at evaluate time
+  "harness_state_hash":  "sha256:...",  // harness shape at evaluate time
+  "evaluator_model_id":  "claude-opus-4-7",
+  "fit_assessment": {
+    "qualitative": "decent",           // well-aligned | good | decent | draft
+    "actionable_findings": 5,
+    "summary": "Auth flow has no skill coverage; obsolete React stubs found."
   },
-  "total": 14
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "coverage-gap",       // coverage-gap | over-coverage | stale-reference | pain-pattern
+      "severity": "high",               // high | medium | low
+      "where": "lib/features/auth/",
+      "evidence_ref": "lib/features/auth/login_controller.dart:42",
+      "rationale": "Authentication logic spans 6 files with no SKILL.md coverage; recurring pain pattern in commit history.",
+      "suggested_action": "Generate .claude/skills/auth-flow/SKILL.md"
+    }
+  ]
 }
 ```
 
-Each `rationale` must cite at least one KB criterion ID (e.g. `KB-3 PER-4` for *"Persona & Rules bucket has explicit scope-and-refusal statement"*). The validator (`scripts/validate-eval-output.sh`) enforces:
+Each finding includes an `evidence_ref` pointing to a real file path or
+file:line in the project. The evaluator skill validates evidence refs
+exist before returning the JSON (no hallucinated paths).
 
-| Check                          | Rule                                                |
-| ------------------------------ | --------------------------------------------------- |
-| Rationale length               | ≥ 80 characters                                     |
-| Criterion citation             | must match regex (`KB-\d+ \w+-\d+` or similar)      |
-| Vacuous "looks good" rationale | rejected at parse time                              |
-
-> **Reproducibility floor** — with the same KB manifest hash and project input, three consecutive `evaluate` runs produce per-axis scores within `max − min ≤ 2` and a total within `±2`.
-
----
-
-## Knowledge base versioning
-
-> **TL;DR** — plugin SemVer tracks code changes; KB `set_version` tracks rubric-content changes. **They are decoupled** so that six-month-old evaluate results stay reproducible.
-
-```text
- ┌──────────────────────────────────────────────────────────────────┐
- │   plugin v1.0.1   ←─  .claude-plugin/plugin.json   (code/schema) │
- │   KB     v1.0.0   ←─  docs/kb-manifest.json        (rubric/data) │
- └──────────────────────────────────────────────────────────────────┘
-                                ↓
-            Every evaluate result embeds kb_manifest_hash —
-            one sha256 string pins the exact rubric used at
-            scoring time, even after the plugin upgrades.
-```
-
-In v1.0.0 a redundant `kb` field was mirrored into `plugin.json`, but it was **dropped in v1.0.1** because the official Claude Code plugin schema does not parse it. The manifest remains the single source of truth.
-
-**KB sources currently bundled:**
-
-| Path                                                  | Contains                                                  |
-| ----------------------------------------------------- | --------------------------------------------------------- |
-| `docs/theory/karpathy-context-engineering.md`         | 9 principles                                              |
-| `docs/theory/anthropic-agentic-loops.md`              | 8 principles                                              |
-| `docs/theory/harness-4-bucket-principles.md`          | The master rubric — 4 axes × 5 criteria = 20 criteria     |
-
-When the KB is refreshed (e.g. to incorporate a new Karpathy talk), the KB version bumps independently and `CHANGELOG.md` records the bump under a separate `KB` heading.
+> **Reproducibility floor** — with the same `(project_tree_hash,
+> harness_state_hash)` pair and evaluator model, three consecutive
+> `evaluate` runs produce the same set of high-severity findings (low and
+> medium may vary by ≤ 1 each).
 
 ---
 
 ## Opt-in hooks (default OFF)
 
-The plugin ships two hook scripts under `hooks/` but both are registered with `enabled: false` per [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md). Hook-triggered runs of `manage` or `evaluate` write to disk and (for `evaluate`) cost LLM tokens — the operator should consciously opt in.
+The plugin ships two hook scripts under `hooks/` but both are registered
+with `enabled: false` per [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md).
+Hook-triggered runs of `manage` or `evaluate` write to disk and (for
+`evaluate`) cost LLM tokens — the operator should consciously opt in.
 
 <details>
 <summary><b>How to enable, where reports land, and how to roll back</b></summary>
@@ -260,47 +248,41 @@ The plugin ships two hook scripts under `hooks/` but both are registered with `e
 }
 ```
 
-Both hooks are **idempotent and harness-detecting** — they silently `exit 0` if the cwd is not a meta-harness-built project (signal: `.meta-harness/` directory must exist alongside `CLAUDE.md` or `agents/karpathy-evaluator.md`). So flipping them on globally is safe.
+Both hooks are **idempotent and harness-detecting** — they silently
+`exit 0` if the cwd is not a meta-harness-built project (signal:
+`.meta-harness/` directory must exist alongside `CLAUDE.md` or
+`.claude/agents/project-fit-analyzer.md`). So flipping them on globally is safe.
 
 ### Where reports land
 
 ```text
 .meta-harness/
+├── state.json                          ← project_tree_hash record
 ├── reports/
 │   ├── 2026-05-26T12-00-00Z-manage.json
 │   └── 2026-05-26T12-00-00Z-evaluate.json
-└── .snapshot/
-    └── 2026-05-26T12-00-00Z/   ← rollback target
+├── .improve-state.json                 ← rolling round-state for /improve
+└── snapshots/
+    └── 2026-05-26T12-00-00Z/            ← rollback target
         ├── CLAUDE.md
         ├── agents/...
         └── ...
 ```
 
-Add both to your project's `.gitignore`:
+The `.meta-harness/.gitignore` shipped by `build` contains a single `*`,
+so the entire directory stays out of git by default.
 
-```gitignore
-.meta-harness/reports/
-.meta-harness/.snapshot/
-```
+### Manual rollback
 
-### Manual rollback (v1.0.1)
-
-There is no dedicated `/meta-harness:rollback` command in v1.0.1. To undo the last `/build` or `/improve` apply, copy the matching snapshot back over the working tree from the project root:
+There is no dedicated `/meta-harness:rollback` command. To undo the last
+`/build` or `/improve` apply, copy the matching snapshot back over the
+working tree from the project root:
 
 ```bash
-cp -R .meta-harness/.snapshot/<UTC>/. .
+cp -R .meta-harness/snapshots/<UTC>/. .
 ```
 
-> The trailing `/.` copies hidden files too. A dedicated rollback command is a v1.1 candidate.
-
-### Atomic-write asymmetry (v1.0.1)
-
-| Hook                       | Write path                                        | Atomic? |
-| -------------------------- | ------------------------------------------------- | ------- |
-| `session-start-healthcheck` | routes through `/meta-harness:manage --write-report` | ✓ `.tmp.$$` → `mv` |
-| `stop-evaluate`            | stdout redirect (no `--write-report` yet)         | ✗ partial JSON possible on mid-stream failure |
-
-Both hooks are default-OFF, so the blast radius is bounded. **v1.1 will add `--write-report` to evaluate and symmetrize the hook.**
+> The trailing `/.` copies hidden files too.
 
 </details>
 
@@ -310,24 +292,28 @@ Both hooks are default-OFF, so the blast radius is bounded. **v1.1 will add `--w
 
 | Guard                | What it does                                                                                                                                              | Bound to       |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **Secret deny-list** | `.env`, `id_rsa`, `.git/`, regex matches never enter evaluator input. Defends against a hardcoded secret being verbatim-echoed into a persisted rationale. | `HR-4 AC-7`    |
+| **Secret deny-list** | `.env*`, `id_rsa*`, `*.pem`, `*.key`, `credentials.*`, `secrets.*` never enter analyzer input. Output content is post-scanned for 16+ char base64/hex blobs. | `HR-4 AC-7`    |
 | **Cwd guard**        | Refuses `/`, `$HOME`, `/tmp`, `/private/tmp`. Symlinks resolved with `pwd -P`.                                                                            | `HR-3`         |
-| **Atomic write**     | All disk writes use `.tmp.$$` → `mv`. Build/improve snapshot pre-overwrite files under `.meta-harness/.snapshot/<UTC>/`.                                  | `HR-1`         |
-| **Cap + stagnation** | Improve never runs > 3 rounds; 2 consecutive non-improvements auto-exit.                                                                                  | `AC-3 HR-5`    |
+| **Atomic write**     | All disk writes use `.tmp.$$` → `mv`. Build/improve snapshot pre-overwrite files under `.meta-harness/snapshots/<UTC>/`.                                  | `HR-1`         |
+| **Cap + stagnation** | Improve never runs > 3 rounds; 2 consecutive `delta_actionable ≥ 0` auto-exits.                                                                            | `AC-3 HR-5`    |
+| **Injection guard**  | Project and harness file content is fed to the analyzer as **data**, not as instructions.                                                                  | `HR-2`         |
 
-> **Threat model for HR-4** — local defense-in-depth, *not* an API-transport guard. The Claude Code host handles transport; meta-harness adds no new network surface. AC-7 binds the contract: a dummy `API_KEY=test123` in a fixture must not appear in any output.
+> **Threat model for HR-4** — local defense-in-depth, *not* an API-transport
+> guard. The Claude Code host handles transport; meta-harness adds no new
+> network surface. AC-7 binds the contract: a dummy `API_KEY=test123` in a
+> fixture must not appear in any output.
 
 ---
 
 ## Architecture decisions
 
-Three ADRs document the load-bearing design choices.
-
 | ADR                                                                  | Title                       | The question it answers                                              |
 | -------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| [ADR-0001](docs/adr/ADR-0001-static-kb-choice.md)                    | Static curated KB           | Why bundle the KB instead of fetching it dynamically?                |
-| [ADR-0002](docs/adr/ADR-0002-single-evaluator-agent.md)              | Single evaluator agent      | Why one shared agent, not per-axis specialists?                      |
 | [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md)              | Slash + opt-in hooks        | Why are slash commands primary and hooks default-OFF?                |
+
+> v1.0's ADR-0001 (static-KB choice) and ADR-0002 (single-evaluator agent)
+> are retired in v2 — the static KB itself was retired, and the single
+> agent rationale collapsed into the project-fit-analyzer's design.
 
 ---
 
@@ -335,16 +321,18 @@ Three ADRs document the load-bearing design choices.
 
 | It is **NOT**                              | It **IS**                                                                            |
 | ------------------------------------------ | ------------------------------------------------------------------------------------ |
-| A code-quality linter                      | A *harness*-quality scorer                                                           |
+| A code-quality linter                      | A *harness*-fit assessor                                                             |
+| A team-collaboration / onboarding tool     | A per-project lifecycle companion                                                    |
 | A runtime agent / background daemon        | Invoked-only — slash command or opt-in hook                                          |
-| A Karpathy or Anthropic endorsement        | A synthesis of their *public* writing — neither has reviewed or approved this plugin |
-| A one-shot benchmark                       | Designed for re-checks over time; KB versioning keeps long-term comparisons honest   |
+| A Karpathy or Anthropic endorsement        | A working synthesis of their public writing — neither has reviewed or approved this plugin |
+| A universal rubric                         | Project-keyed — the standard *is* this project, not a checklist                      |
 
 ---
 
 ## Reporting issues & contributing
 
-Issues and contributions are welcome. KB versioning means: if you want to add a new principle, you bump the **KB version** and update `docs/kb-manifest.json` — the plugin's SemVer is independent.
+Issues and contributions are welcome at
+[github.com/seokan-jeong/meta-harness](https://github.com/seokan-jeong/meta-harness).
 
 ---
 

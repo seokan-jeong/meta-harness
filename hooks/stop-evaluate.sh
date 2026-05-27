@@ -22,7 +22,9 @@ target="${PWD}"
 # with at least one harness body file to filter out stray directories.
 is_harnessed() {
   [ -d "${target}/.meta-harness" ] \
-    && { [ -f "${target}/CLAUDE.md" ] || [ -f "${target}/agents/karpathy-evaluator.md" ]; }
+    && { [ -f "${target}/CLAUDE.md" ] \
+         || [ -f "${target}/.claude/agents/project-fit-analyzer.md" ] \
+         || [ -f "${target}/agents/project-fit-analyzer.md" ]; }
 }
 
 if ! is_harnessed; then
