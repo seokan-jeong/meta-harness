@@ -25,19 +25,20 @@ Plus a single LLM-as-judge evaluator agent (`agents/karpathy-evaluator.md`) that
 
 **TL;DR**: plugin SemVer tracks code changes; KB `set_version` tracks rubric-content changes. They are decoupled for one practical reason — to make six-month-old evaluate results reproducible. Each evaluate output embeds a `kb_manifest_hash`; that single string pins the exact rubric used at scoring time, even after the plugin upgrades.
 
-The KB is **separate from the plugin's SemVer.** The current KB set version is `1.0.0`. The plugin version is `1.0.0`. Both are tracked in `.claude-plugin/plugin.json`:
+The KB is **separate from the plugin's SemVer.** The current KB set version is `1.0.0`. The plugin version is `1.0.1`. The plugin version lives in `.claude-plugin/plugin.json`; the KB set version lives in `docs/kb-manifest.json` (in v1.0.0 a redundant `kb` field was also mirrored into `plugin.json`, but that field was dropped in v1.0.1 because the official Claude Code plugin schema does not parse it — the manifest remains the single source of truth):
 
 ```json
-{
-  "version": "1.0.0",
-  "kb": { "set_version": "1.0.0", "manifest_path": "docs/kb-manifest.json" }
-}
+// .claude-plugin/plugin.json
+{ "version": "1.0.1" }
+
+// docs/kb-manifest.json
+{ "set_version": "1.0.0", "combined_hash": "sha256:...", "...": "..." }
 ```
 
 When the KB is refreshed (e.g., to incorporate a new Karpathy talk), the KB version bumps independently and `CHANGELOG.md` records the bump under a separate `KB` heading. This separation matters: a project that pinned an evaluation result to `kb_manifest_hash` can verify reproducibility even after the plugin upgrades.
 
 KB sources currently bundled:
-- `docs/theory/karpathy-context-engineering.md` (8 principles)
+- `docs/theory/karpathy-context-engineering.md` (9 principles)
 - `docs/theory/anthropic-agentic-loops.md` (8 principles)
 - `docs/theory/harness-4-bucket-principles.md` (the master rubric — 4 axes × 5 criteria = 20 criteria)
 
@@ -101,9 +102,9 @@ The hooks themselves are idempotent and harness-detecting: they silently exit 0 
 .meta-harness/.snapshot/
 ```
 
-**Manual rollback (v1.0.0)**: There is no dedicated `/meta-harness:rollback` command in v1.0.0. To undo the last `/build` or `/improve` apply, copy the matching snapshot back over the working tree from the project root: `cp -R .meta-harness/.snapshot/<UTC>/. .` (pick the timestamped directory matching the round you want to undo; the trailing `/.` copies hidden files too). A dedicated rollback command is a v1.1 candidate.
+**Manual rollback (v1.0.1)**: There is no dedicated `/meta-harness:rollback` command in v1.0.1. To undo the last `/build` or `/improve` apply, copy the matching snapshot back over the working tree from the project root: `cp -R .meta-harness/.snapshot/<UTC>/. .` (pick the timestamped directory matching the round you want to undo; the trailing `/.` copies hidden files too). A dedicated rollback command is a v1.1 candidate.
 
-**Atomic-write asymmetry (v1.0.0)**: The session-start healthcheck routes through `/meta-harness:manage --write-report`, which writes atomically (`.tmp.$$` → `mv`). The Stop hook uses stdout redirect because v1.0.0 evaluate does not yet expose `--write-report`; on evaluate failure mid-stream, partial JSON may land in the report file. Both hooks are default-OFF, so the blast radius is bounded. v1.1 will add `--write-report` to evaluate and symmetrize the hook.
+**Atomic-write asymmetry (v1.0.1)**: The session-start healthcheck routes through `/meta-harness:manage --write-report`, which writes atomically (`.tmp.$$` → `mv`). The Stop hook uses stdout redirect because v1.0.1 evaluate does not yet expose `--write-report`; on evaluate failure mid-stream, partial JSON may land in the report file. Both hooks are default-OFF, so the blast radius is bounded. v1.1 will add `--write-report` to evaluate and symmetrize the hook.
 
 ## How to read an evaluate report
 
