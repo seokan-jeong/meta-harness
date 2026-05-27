@@ -1,40 +1,78 @@
 ---
 skill_id: harness-improve
 name: Harness Improve Workflow
-description: "Procedural workflow for /meta-harness:improve. Runs a capped 3-round loop of (evaluate → pick top finding → propose patch → user approval → atomic apply + snapshot → re-evaluate → record state). Two consecutive non-improvement rounds trigger stagnation auto-exit (HR-5). A 4th round attempt prints 'max 3 rounds reached' and terminates (AC-3). Replaces the prior rule-based bucket-fix proposer."
+description: "Procedural workflow for /meta-harness:improve. Runs a 4-phase pipeline against the target harness: (1) tighten — LLM proposes line-deletions per Anthropic's conciseness test; (2) lateral — LLM proposes moving heavy sections to references/; (3) sharpen — LLM rewrites YAML descriptions for triggering; (4) deterministic — the v2.0 3-round (evaluate → pick → propose → approve → apply → re-evaluate) loop. Each phase has its own approval gate. --phases selects a subset; --phases deterministic preserves the v2.0 contract (AC-3 reproducibility)."
 invoked_by:
   - commands/improve.md
 invokes:
-  - skills/harness-evaluate (per-round before/after fit assessment)
+  - skills/harness-evaluate (per-round before/after fit assessment in phase 4 + per-phase delta checks in phases 1-3)
 related_requirements: [FR-3, NFR-1, NFR-4, NFR-5, HR-1, HR-3, HR-4, HR-5, AC-3]
-related_adrs: [ADR-0001, ADR-0002, ADR-0003]
+related_adrs: [ADR-0003, ADR-0004]
 ---
 
 # Harness Improve — workflow skill
 
 This skill is the **single source of truth** for the `/meta-harness:improve`
 procedure. The slash command (`commands/improve.md`) is a thin trigger;
-this file owns the state machine, the termination logic, and the
-round-state record format.
+this file owns the phase pipeline, the per-phase state machine, the
+termination logic, and the round-state record format.
 
 Improve is the only verb in v2 that **modifies the target harness on
-disk** beyond first-time build. It does so under three guards:
+disk** beyond first-time build. It does so under four guards:
 
-1. **Per-round user approval** before any apply (NFR-4). `--auto` skips
-   this gate; the flag exists primarily so AC-3 (the cap) can be exercised
-   in tests without an operator approving multiple times.
-2. **Cap at 3 rounds** (AC-3 / HR-5). A 4th attempt terminates with the
-   literal string `"max 3 rounds reached"`. The cap is configurable via
-   `--max-rounds <n>` for diagnostic use; production callers should leave
-   it at the default.
-3. **Stagnation auto-exit** (HR-5). If two consecutive rounds do not
-   reduce the count of *actionable findings* (high + medium severity),
-   the loop terminates. This protects against "the model keeps tweaking
-   but fit isn't improving" loops.
+1. **Per-phase user approval** before any apply (NFR-4). Each phase
+   renders a diff and prompts `Apply this proposal? [y/N]`. `--auto`
+   skips per-phase prompts but not the outer cwd gate.
+2. **Per-phase deletion / size constraints** (phases 1-3, see ADR-0004).
+   tighten can only DELETE lines (cannot grow a file). sharpen targets
+   only YAML `description` / `when_to_use` (cannot edit the body). lateral
+   moves content out of SKILL.md but does not invent new content.
+3. **Cap at 3 rounds for phase 4** (AC-3 / HR-5). A 4th attempt in the
+   deterministic phase terminates with the literal string
+   `"max 3 rounds reached"`. The cap is configurable via
+   `--max-rounds <n>` for diagnostic use.
+4. **Stagnation auto-exit** (HR-5). In phase 4, two consecutive rounds
+   with non-improving `delta_actionable` terminate the loop. Phases 1-3
+   are single-pass and have a per-phase regression guard instead: if
+   after-phase evaluate raises `actionable`, the phase is auto-reverted
+   from snapshot and reported as a regression.
 
 The skill is procedural. It does NOT redefine evaluate's JSON shape or
 the fit-finding model — those live in `skills/harness-evaluate/SKILL.md`
 and `agents/project-fit-analyzer.md`.
+
+---
+
+## Phase pipeline (v2.1+)
+
+improve runs **4 phases in order**. Default order:
+`tighten → lateral → sharpen → deterministic`. The `--phases` flag
+selects a comma-separated subset; ordering within the subset is
+canonical (you cannot ask for `sharpen,tighten` — it runs as
+`tighten,sharpen`).
+
+| Phase | Verb | LLM? | Mutation kind | Cap | Anti-regression |
+|-------|------|------|----------------|-----|-----------------|
+| 1 | tighten | Yes | line-deletions only | single-pass | post-phase evaluate; revert on `delta_actionable > 0` |
+| 2 | lateral | Yes | move sections to `references/<topic>.md`; SKILL.md body gets one-line pointer | single-pass | same |
+| 3 | sharpen | Yes | YAML `description` / `when_to_use` rewrite only | single-pass | same |
+| 4 | deterministic | No | current v2.0 catalog (stub create / line delete / file delete) | `--max-rounds` (default 3) | HR-5 stagnation streak |
+
+**Phase ordering rationale (ADR-0004).** Subtract before add. Deletion
+(phase 1) can only reduce context budget. Lateral (phase 2) restructures
+without inventing content. Sharpen (phase 3) targets the highest-leverage
+field. Deterministic (phase 4) adds missing coverage last, so it slots
+into the now-tightened body. Reordering this chain would re-introduce
+the failure modes Karpathy's U-curve and Anthropic's conciseness test
+warn against.
+
+**AC-3 reproducibility escape hatch.** `--phases deterministic` runs
+only phase 4 — exactly the v2.0 behavior. CI / scripted callers that
+need deterministic outputs should use this flag. The other phases
+involve LLM calls and are not bit-reproducible across runs.
+
+**`--no-apply`** applies to every phase: the LLM is still called, diffs
+are still shown, no writes happen.
 
 ---
 
@@ -43,14 +81,22 @@ and `agents/project-fit-analyzer.md`.
 | Input                      | Source                                                                                     | Required |
 | -------------------------- | ------------------------------------------------------------------------------------------ | -------- |
 | Target project root        | `--target <path>` arg, else `$PWD`                                                         | Yes      |
-| Max rounds                 | `--max-rounds <n>` arg, default `3`                                                        | Yes (default) |
-| Auto-approve per-round     | `--auto` flag                                                                              | No       |
-| Apply mode                 | absent `--no-apply` (apply on by default; `--no-apply` makes the loop a pure dry-run)      | No       |
+| Phase selection            | `--phases <csv>` arg, default `tighten,lateral,sharpen,deterministic`                      | Yes (default) |
+| Max rounds (phase 4 only)  | `--max-rounds <n>` arg, default `3`                                                        | Yes (default) |
+| Auto-approve per-phase     | `--auto` flag                                                                              | No       |
+| Apply mode                 | absent `--no-apply` (apply on by default; `--no-apply` makes the run a pure dry-run)       | No       |
 | Plugin install root        | `$CLAUDE_PLUGIN_ROOT` else relative fallback (same pattern as `harness-build`)             | Yes      |
 
 `--max-rounds 0` is `IMPROVE_BAD_ARGS`. `--max-rounds > 10` is also
 `IMPROVE_BAD_ARGS` — improve is an interactive verb, not a long-running
 batch job.
+
+`--phases` accepts any comma-separated subset of
+`{tighten, lateral, sharpen, deterministic}`. Unknown phase names →
+`IMPROVE_BAD_ARGS`. Empty list → `IMPROVE_BAD_ARGS`. Duplicates are
+de-duplicated; order is normalized to the canonical phase order.
+`--phases deterministic` preserves v2.0 behavior exactly (no LLM calls,
+AC-3 reproducible).
 
 There is no KB input. The prior `docs/kb-manifest.json` chain is retired.
 
@@ -64,12 +110,14 @@ There is no KB input. The prior `docs/kb-manifest.json` chain is retired.
 
    ```jsonc
    {
-     "schema_version": 1,
-     "improve_version": "2.0.0",
+     "schema_version": 2,
+     "improve_version": "2.1.0",
      "meta": {
        "target": "/abs/path",
        "started_at": "2026-05-27T10:30:00Z",
        "ended_at": "2026-05-27T10:42:00Z",
+       "phases_requested": ["tighten", "lateral", "sharpen", "deterministic"],
+       "phases_executed": ["tighten", "lateral", "sharpen", "deterministic"],
        "max_rounds": 3,
        "auto": false,
        "exit_reason": "max_rounds_reached"
@@ -77,41 +125,51 @@ There is no KB input. The prior `docs/kb-manifest.json` chain is retired.
      "rounds": [
        {
          "round_n": 1,
+         "phase": "tighten",
          "started_at": "2026-05-27T10:30:00Z",
-         "ended_at": "2026-05-27T10:34:00Z",
-         "before_fit": {
-           "qualitative": "decent",
-           "findings_total": 4,
-           "findings_high": 1,
-           "findings_medium": 2,
-           "findings_low": 1,
-           "actionable": 3
-         },
-         "after_fit": {
-           "qualitative": "good",
-           "findings_total": 2,
-           "findings_high": 0,
-           "findings_medium": 1,
-           "findings_low": 1,
-           "actionable": 1
-         },
+         "ended_at": "2026-05-27T10:32:00Z",
+         "before_fit": { "qualitative": "decent", "findings_total": 4, "findings_high": 1, "findings_medium": 2, "findings_low": 1, "actionable": 3 },
+         "after_fit":  { "qualitative": "decent", "findings_total": 4, "findings_high": 1, "findings_medium": 2, "findings_low": 1, "actionable": 3 },
+         "delta_actionable": 0,
+         "stagnation_streak": 0,
+         "proposal_summary": "Delete 12 lines across 3 SKILL.md files per Anthropic conciseness test.",
+         "files_changed": ["skills/foo/SKILL.md", "skills/bar/SKILL.md", "CLAUDE.md"],
+         "lines_deleted": 12,
+         "user_approved": true,
+         "applied": true,
+         "regressed": false,
+         "snapshot_path": ".meta-harness/snapshots/2026-05-27T10-30-00Z/"
+       },
+       {
+         "round_n": 4,
+         "phase": "deterministic",
+         "started_at": "2026-05-27T10:36:00Z",
+         "ended_at": "2026-05-27T10:40:00Z",
+         "before_fit": { "qualitative": "decent", "findings_total": 4, "findings_high": 1, "findings_medium": 2, "findings_low": 1, "actionable": 3 },
+         "after_fit":  { "qualitative": "good",   "findings_total": 2, "findings_high": 0, "findings_medium": 1, "findings_low": 1, "actionable": 1 },
          "delta_actionable": -2,
          "stagnation_streak": 0,
-         "target_finding": {
-           "id": "F-001",
-           "category": "coverage-gap",
-           "severity": "high",
-           "summary": "..."
-         },
+         "target_finding": { "id": "F-001", "category": "coverage-gap", "severity": "high", "summary": "..." },
          "proposal_summary": "Generate skills/feature-scaffold/SKILL.md stub from F-001.",
          "files_changed": ["skills/feature-scaffold/SKILL.md"],
          "user_approved": true,
          "applied": true,
-         "snapshot_path": ".meta-harness/.snapshot/2026-05-27T10-30-00Z/"
+         "regressed": false,
+         "snapshot_path": ".meta-harness/snapshots/2026-05-27T10-36-00Z/"
        }
      ]
    }
    ```
+
+   **Schema-version bump.** v2.0 → v2.1 added the `phase` field on each
+   round and `phases_requested` / `phases_executed` on `meta`. Old v2.0
+   state files (schema_version 1) are read-compatible: missing `phase`
+   defaults to `"deterministic"` for back-compat.
+
+   **`round_n` is monotonic across phases.** Phases 1-3 each produce
+   exactly one round entry (round_n 1, 2, 3). Phase 4 produces up to
+   `max_rounds` entries starting at round_n 4. `--max-rounds 3` caps
+   phase 4 at 3 rounds, not the whole run.
 
 2. **`<target>/.meta-harness/state.json` update.** On every applied round,
    improve refreshes `state.json` with the post-apply `project_tree_hash`
@@ -129,16 +187,17 @@ There is no KB input. The prior `docs/kb-manifest.json` chain is retired.
    - Streak: `streak: 0/2 (resets on negative Δactionable)`
    - Final block: `EXIT <exit_reason>`.
 
-### `exit_reason` vocabulary (6 normal + 1 failure)
+### `exit_reason` vocabulary (7 normal + 1 failure)
 
 | Value                       | Meaning                                                                                  |
 | --------------------------- | ---------------------------------------------------------------------------------------- |
-| `max_rounds_reached`        | The 4th (or `max_rounds + 1`-th) round was attempted; loop terminated per AC-3.          |
-| `stagnation_auto_exit`      | Two consecutive rounds with `delta_actionable >= 0`; loop terminated per HR-5.            |
-| `user_declined`             | The user answered N to a per-round approval prompt.                                       |
-| `no_findings_to_address`    | Round started with `actionable == 0` (no high/medium findings); nothing to do.            |
-| `well_aligned`              | Round started with `fit_assessment.qualitative == "well-aligned"`; harness is fit.        |
-| `dry_run_complete`          | `--no-apply` was set; the loop ran to completion without writing.                         |
+| `max_rounds_reached`        | Phase 4: the `max_rounds + 1`-th deterministic round was attempted; loop terminated per AC-3. |
+| `stagnation_auto_exit`      | Phase 4: two consecutive rounds with `delta_actionable >= 0`; loop terminated per HR-5.   |
+| `user_declined`             | The user answered N to a per-phase or per-round approval prompt. Subsequent phases skipped. |
+| `no_findings_to_address`    | Phase 4 started with `actionable == 0` (no high/medium findings); nothing to do.          |
+| `well_aligned`              | Phase 4 started with `fit_assessment.qualitative == "well-aligned"`; harness is fit.      |
+| `dry_run_complete`          | `--no-apply` was set; the pipeline ran to completion without writing.                     |
+| `pipeline_complete`         | All requested phases completed normally (no early termination, all approvals granted).    |
 | `round_apply_failed`        | Step 6 (atomic apply) failed mid-batch; snapshot restored. The ONLY non-zero exit.        |
 
 ---
@@ -187,14 +246,237 @@ After the outer prompt passes:
    `IMPROVE_BAD_ARGS` in v2.0.
 
 2. Initialize counters: `next_round_n = 1`, `stagnation_streak = 0`.
-3. Record `meta.started_at`.
+3. Parse `--phases <csv>`. Validate against canonical set
+   `{tighten, lateral, sharpen, deterministic}`. Empty / unknown values
+   → `IMPROVE_BAD_ARGS`. Deduplicate. Normalize order to canonical.
+   Record `meta.phases_requested`.
+4. Record `meta.started_at`.
 
 ---
 
-## Per-round procedure (Round N)
+## Phase pipeline orchestration
 
-Each round executes the following 8 steps. If a step fails, the round is
-rolled back and the loop terminates with `IMPROVE_ROUND_FAILED`.
+After init, iterate over `meta.phases_requested` in canonical order:
+
+```
+for phase in canonical_order(phases_requested):
+  result = run_phase(phase)
+  meta.phases_executed.append(phase)
+  if result.exit_reason in {"user_declined", "round_apply_failed"}:
+    break   # subsequent phases skipped
+  if result.exit_reason == "regressed":
+    # phase auto-reverted; do NOT terminate, advance to next
+    continue
+  if phase == "deterministic":
+    # phase 4 owns its own termination (cap, stagnation, well_aligned, etc.)
+    break if result.exit_reason != "pipeline_continue"
+```
+
+**Phase semantics summary:**
+
+- Phases 1-3 (tighten, lateral, sharpen): single-pass. Each produces
+  exactly one round entry. On regression, auto-revert and continue to
+  next phase (regression is not a fatal condition; the pipeline
+  expects some phases to no-op).
+- Phase 4 (deterministic): the v2.0 loop. Multi-round, capped by
+  `--max-rounds`. Its own exit_reasons (`max_rounds_reached`,
+  `stagnation_auto_exit`, `well_aligned`, etc.) terminate the entire
+  pipeline.
+
+**`exit_reason` resolution:**
+
+- If any phase set `user_declined` or `round_apply_failed`, that
+  reason wins (the pipeline stopped early).
+- If phase 4 ran and set one of its terminal reasons (`max_rounds_reached`,
+  `stagnation_auto_exit`, `no_findings_to_address`, `well_aligned`),
+  that reason wins.
+- If all requested phases completed without early termination,
+  `exit_reason = pipeline_complete`.
+- `--no-apply` override (`dry_run_complete`) is applied last, as in v2.0.
+
+---
+
+## Phase 1 — tighten (LLM, deletion-only)
+
+Tighten applies Anthropic's literal conciseness test ([Claude Code Docs
+— Best Practices](https://code.claude.com/docs/en/best-practices):
+*"For each line, ask: 'Would removing this cause Claude to make
+mistakes?' If not, cut it."*) to every harness body file. The LLM
+proposes line-deletions; it cannot add, rewrite, or move content.
+
+### Targets
+
+Same harness-body glob as `harness-evaluate` Step 2:
+`CLAUDE.md`, `AGENTS.md`, `{skills,.claude/skills}/**/SKILL.md`,
+`{agents,.claude/agents}/**/*.md`. HR-4 secret-deny-listed paths
+filtered. Files under 30 lines skipped (no useful deletions).
+
+### Procedure
+
+1. **Snapshot.** Create `.meta-harness/snapshots/<UTC>/phase-1-tighten/`
+   and copy every target file to its mirrored relative path. Single
+   rollback record for the phase.
+2. **Before-fit.** If phase 1 is the first phase actually executing,
+   invoke `harness-evaluate` for `before_fit`. Otherwise reuse prior
+   phase's `after_fit`.
+3. **LLM pass.** For each target file, feed full content + the tighten
+   proposer prompt. Model returns
+   `{deletions: [{line_range: [start, end], rationale: string}]}`.
+   Validate: ranges in-file, non-overlapping, rationale ≥ 10 chars.
+   Invalid proposals dropped to stderr.
+4. **Aggregate diff.** Unified diff of net deletions across all files.
+   Header: `Phase 1 / tighten — proposing N line deletions across M files (Anthropic conciseness test)`.
+5. **Approval gate** (NFR-4). `Apply this proposal? [y/N]`. `--auto`
+   skips. Decline → record `phase: tighten, user_approved: false`, set
+   `exit_reason: user_declined`, skip subsequent phases.
+6. **Atomic apply.** For each file with deletions:
+   - Compute post-deletion content.
+   - **Deletion-only invariant**: verify post-deletion is a strict line
+     subset of the snapshot copy (every line in new must appear in
+     snapshot, in order). Hash mismatch → fail the phase, restore from
+     snapshot.
+   - Atomic write via `.tmp.$$` → `mv` (HR-1).
+   - Mid-batch failure → restore all files from `phase-1-tighten/`
+     snapshot; record `applied: false, regressed: false`.
+7. **After-fit + regression guard.** Invoke `harness-evaluate` again.
+   If `after_fit.actionable > before_fit.actionable` (deletion removed
+   load-bearing content), **auto-revert from snapshot**, mark
+   `regressed: true`, continue to next phase. The phase did not apply.
+   Otherwise keep.
+8. **Record the round.** `phase: "tighten"`, `round_n` = next number,
+   `files_changed`, `lines_deleted`. Atomic write `.improve-state.json`.
+
+### Tighten proposer prompt
+
+System: *"You are applying the Anthropic Claude Code conciseness test
+to a harness instruction file. For each line, ask: 'Would removing this
+cause Claude to make mistakes?' Return ONLY a JSON object
+`{deletions: [{line_range: [start, end], rationale: string}]}` for
+proposed deletions. Do NOT propose additions, rewrites, or
+line-reorderings. Be conservative — when in doubt, do not propose. The
+operator reviews every proposed deletion."*
+
+The conservative bias matters: over-deletion is caught by the
+regression guard, but a conservative pass produces a small reviewable
+diff. The deletion-only invariant + auto-revert means tighten CANNOT
+produce a harness worse than its input.
+
+---
+
+## Phase 2 — lateral (LLM, structural extraction)
+
+Lateral applies Anthropic's progressive-disclosure pattern (L1
+metadata / L2 SKILL.md body / L3 bundled references — [Anthropic
+Engineering blog](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills))
+by moving heavy sections out of SKILL.md bodies into
+`references/<topic>.md` files. The body retains a one-line pointer.
+
+### Targets
+
+SKILL.md files (legacy `skills/` + canonical `.claude/skills/`) where
+the body exceeds **300 lines** OR contains a single section longer than
+**100 lines**. Below these thresholds, lateral has nothing to do.
+
+### Procedure
+
+1. **Snapshot.** `.meta-harness/snapshots/<UTC>/phase-2-lateral/`. Copy
+   every target SKILL.md AND its parent skill directory (existing
+   `references/` content must be preserved).
+2. **LLM pass.** For each target SKILL.md, feed full content + a list
+   of existing `references/*.md` filenames + the lateral proposer
+   prompt. Model returns
+   `{extractions: [{source_range, target_file, pointer_line}]}`.
+   Validate:
+   - source_ranges non-overlapping
+   - target_file path under the same skill directory
+   - pointer_line contains a working relative markdown link
+   - source_range size ≥ 30 lines (small sections aren't worth the indirection)
+3. **Aggregate diff.** Per-file unified diff (removed sections +
+   pointer line) plus creation diff per new `references/*.md`. Header:
+   `Phase 2 / lateral — proposing K extractions across M skills (progressive disclosure)`.
+4. **Approval gate.** Same as phase 1.
+5. **Atomic apply.** For each extraction:
+   - Write the extracted content to `references/<topic>.md` (atomic,
+     HR-1). If the target file exists, append with separator
+     `\n\n## (extracted from SKILL.md on YYYY-MM-DD)\n`.
+   - Atomically rewrite source SKILL.md replacing the source_range
+     with the pointer_line.
+6. **After-fit + regression guard.** If the analyzer now reports a
+   stale-reference finding pointing at the new `references/*.md` (e.g.,
+   the pointer link format the analyzer can't follow), revert.
+7. **Record the round.** `phase: "lateral"`, `files_changed` lists
+   rewritten SKILL.md + created references.
+
+### Lateral proposer prompt
+
+System: *"You are applying Anthropic's progressive-disclosure pattern.
+The SKILL.md body is the L2 layer (loaded every activation, recurring
+token cost). Move heavy reference material — API tables, long
+examples, detailed background — to a `references/<topic>.md` file (L3,
+loaded only when navigated). KEEP inline: step-by-step instructions,
+short examples, the procedure spine. Return ONLY the extractions JSON.
+Do NOT propose extractions under 30 lines."*
+
+---
+
+## Phase 3 — sharpen (LLM, YAML-description-only)
+
+Sharpen rewrites the YAML `description` and (where present)
+`when_to_use` fields of skills and agents to improve trigger accuracy.
+Anthropic skill-creator notes Claude tends to *"undertrigger"* skills;
+descriptions should be a little bit pushy. The body is **never**
+touched by this phase.
+
+### Targets
+
+Every SKILL.md and agent .md (legacy + `.claude/`) with a YAML
+frontmatter `description` field. HR-4 paths filtered.
+
+### Procedure
+
+1. **Snapshot.** `.meta-harness/snapshots/<UTC>/phase-3-sharpen/`. Copy
+   every target file (we only edit frontmatter, but snapshot the whole
+   file for trivial rollback).
+2. **LLM pass.** For each target file, read the YAML frontmatter + the
+   first ~50 lines of the body, feed to the model with the sharpen
+   prompt. Model returns
+   `{description, when_to_use?, rationale}`. Validate:
+   - combined `description` + `when_to_use` ≤ 1,500 chars (Anthropic
+     structural cap is 1,536; 36-char buffer)
+   - each field ≥ 30 chars (no empty rewrites)
+   - rationale ≥ 20 chars
+3. **Aggregate diff.** Before/after for each frontmatter description
+   block. Header: `Phase 3 / sharpen — proposing N description rewrites (trigger-accuracy)`.
+4. **Approval gate.** Same as phases 1-2.
+5. **Atomic apply.** Read frontmatter, replace `description` and
+   `when_to_use` only, atomically write back. **Body-untouched
+   invariant**: hash the body section before/after; mismatch → abort
+   this file's update, restore from snapshot.
+6. **After-fit + regression guard.** Same as phases 1-2.
+7. **Record the round.** `phase: "sharpen"`.
+
+### Sharpen proposer prompt
+
+System: *"You are rewriting a Claude Code skill / agent description
+for trigger accuracy. Anthropic notes Claude undertriggers skills;
+descriptions should be specific about WHEN to use this skill (use 'Use
+when ...' phrasing), how it differs from related skills, and include
+1-2 concrete trigger phrases the user might type. Target 200-300
+chars for description. Avoid generic phrasing like 'this skill helps
+with X'. Be a little bit pushy."*
+
+---
+
+## Phase 4 — deterministic loop (per-round procedure)
+
+Phase 4 is the v2.0 deterministic improve loop: up to `--max-rounds`
+iterations of (evaluate → pick top finding → propose patch → user
+approval → atomic apply + snapshot → re-evaluate → record state). With
+`--phases deterministic` this is the ONLY phase that runs, and the
+behavior is byte-identical to v2.0 (AC-3 reproducible).
+
+Each round executes the following 8 steps. If a step fails, the round
+is rolled back and the loop terminates with `IMPROVE_ROUND_FAILED`.
 
 ### Step 1 — Cap check (AC-3)
 
@@ -337,7 +619,7 @@ Reached only if `user_approved == true` AND the proposal is not
 advisory-only.
 
 1. Create the snapshot dir if not already created this run:
-   `snap="$resolved/.meta-harness/.snapshot/$(date -u +%Y%m%dT%H%M%SZ)"`.
+   `snap="$resolved/.meta-harness/snapshots/$(date -u +%Y%m%dT%H%M%SZ)/phase-4-deterministic"`.
 2. For each file in `files_changed`:
    - If the file exists, copy it to `$snap/<relative-path>`. (For
      over-coverage removals, this copy IS the rollback record — the
@@ -397,19 +679,24 @@ A non-negative delta is non-improvement. (Note: this inverts the v1
 
 ## FINALIZE — write `meta.exit_reason` and emit summary
 
-When the loop exits (Step 1 cap, Step 2 early-exit, Step 5 user_declined,
-or Step 8 stagnation):
+When the pipeline exits (any phase set `user_declined` /
+`round_apply_failed`; phase 4 hit Step 1 cap, Step 2 early-exit, Step 8
+stagnation; or all phases completed normally):
 
-1. **`--no-apply` override.** If the run was launched with `--no-apply`,
+1. **Resolve `exit_reason`** per the orchestration rules above (early
+   termination wins; otherwise phase-4 terminal reason; otherwise
+   `pipeline_complete`).
+2. **`--no-apply` override.** If the run was launched with `--no-apply`,
    replace the natural `exit_reason` with `dry_run_complete` before the
    state file is written. Single override point. `round_apply_failed` is
    not overridden because Step 6 (where it is set) is skipped under
    `--no-apply`.
-2. Set `meta.ended_at`.
-3. Atomically write the final `.improve-state.json` (HR-1).
-4. Emit `EXIT <exit_reason>` and the human summary.
-5. Return 0 for the six normal reasons; return `IMPROVE_ROUND_FAILED`'s
-   non-zero code for `round_apply_failed`.
+3. Set `meta.ended_at` and finalize `meta.phases_executed`.
+4. Atomically write the final `.improve-state.json` (HR-1).
+5. Emit `EXIT <exit_reason>` and the human summary (one block per
+   executed phase + final exit block).
+6. Return 0 for the seven normal reasons; return
+   `IMPROVE_ROUND_FAILED`'s non-zero code for `round_apply_failed`.
 
 ---
 
@@ -448,21 +735,27 @@ intentionally conservative.
 | `IMPROVE_PREEMPTED`          | Operator quit at the prior-state choice prompt before any round started.                                               | 6    |
 | `IMPROVE_STATE_WRITE_FAILED` | Round completed but `.improve-state.json` atomic write failed. In-memory state lost; applied edits are NOT rolled back. | 7    |
 
-The five normal `exit_reason` values (`max_rounds_reached`,
+The seven normal `exit_reason` values (`max_rounds_reached`,
 `stagnation_auto_exit`, `user_declined`, `no_findings_to_address`,
-`well_aligned`, `dry_run_complete`) are NOT failures — they return 0.
+`well_aligned`, `dry_run_complete`, `pipeline_complete`) are NOT
+failures — they return 0.
 
 ---
 
-## AC-3 contract (binding, v2 form)
+## AC-3 contract (binding, v2 form — phase 4 only)
 
-> When `/meta-harness:improve` runs with `--max-rounds 3 --auto` against
-> a fixture harness that has at least 3 actionable findings per round
-> (sufficient to keep the loop going), the loop MUST execute at most 3
-> apply-eligible rounds. A 4th round attempt MUST print
-> `"max 3 rounds reached"` on stdout AND set
+> When `/meta-harness:improve --phases deterministic --max-rounds 3
+> --auto` runs against a fixture harness that has at least 3
+> actionable findings per round (sufficient to keep the loop going),
+> phase 4 MUST execute at most 3 apply-eligible rounds. A 4th round
+> attempt MUST print `"max 3 rounds reached"` on stdout AND set
 > `meta.exit_reason == "max_rounds_reached"` in the state file. The
-> state file's `rounds` array MUST have length exactly 3.
+> state file's `rounds` array MUST have length exactly 3 and every
+> round MUST have `phase == "deterministic"`.
+
+The `--phases deterministic` flag is part of the contract because v2.1
+adds LLM phases by default. Callers depending on AC-3 reproducibility
+MUST pin to `--phases deterministic`.
 
 Mechanical verification:
 
@@ -470,7 +763,8 @@ Mechanical verification:
 # Fixture: a project + harness with enough coverage gaps that proposals
 # keep firing for 3 rounds. (Constructed by adding 4+ unrelated TODO
 # directories the analyzer flags as coverage-gap.)
-/meta-harness:improve --target /tmp/m5-fixture --auto --max-rounds 3
+/meta-harness:improve --target /tmp/m5-fixture \
+  --phases deterministic --auto --max-rounds 3
 
 # Check 1: stdout includes the cap message
 last_stdout=$(... captured ...)
@@ -479,9 +773,10 @@ echo "$last_stdout" | grep -F "max 3 rounds reached" >/dev/null || exit 1
 # Check 2: state file shows exactly 3 rounds + correct exit_reason
 jq -e '.rounds | length == 3' /tmp/m5-fixture/.meta-harness/.improve-state.json
 jq -e '.meta.exit_reason == "max_rounds_reached"' /tmp/m5-fixture/.meta-harness/.improve-state.json
+jq -e 'all(.rounds[]; .phase == "deterministic")' /tmp/m5-fixture/.meta-harness/.improve-state.json
 ```
 
-Both `jq -e` invocations must exit 0.
+All three `jq -e` invocations must exit 0.
 
 ---
 
@@ -498,8 +793,10 @@ project-absent refs that improve can't auto-fix) two rounds in a row
 after a Round-1 success. The proposer is deterministic, so the behavior
 is reproducible.
 
-v2.x may introduce LLM-based proposers, at which point the determinism
-guarantee will need to be relaxed.
+In v2.1, phases 1-3 are LLM-based; their reproducibility is **not**
+guaranteed by AC-3. AC-3 binds only `--phases deterministic`. Callers
+that depend on byte-reproducible output (CI gates, golden-file tests)
+MUST pin `--phases deterministic`.
 
 ---
 
@@ -528,34 +825,45 @@ a single `-line removed`. For stub creation, the diff is `--- /dev/null
 
 ---
 
-## Out of scope for v2.0
+## Out of scope for v2.1
 
-- **LLM-based proposers.** v2.0's catalogue (Step 4 table) is
-  rule-based and deterministic. Adding an LLM proposer ("the analyzer's
-  rationale → propose a specific edit") would change AC-3's reproducibility
-  story.
-- **Multi-finding rounds.** One round addresses one finding. Tackling
-  several findings per round is v2.x — it would complicate the diff
-  preview and the rollback contract.
+- **LLM-based body rewriting.** v2.1 LLM phases are *constrained*:
+  tighten can only delete, lateral can only move, sharpen can only edit
+  YAML frontmatter. Free-form body rewriting (rewriting SKILL.md prose
+  for "richness") is explicitly NOT a phase — Hamel's *"if you delegate
+  this task to an automated tool too early, you risk never fully
+  understanding your own requirements or the model's failure modes"*
+  warning ([source](https://hamel.dev/blog/posts/evals-faq/should-i-stop-writing-prompts-manually-in-favor-of-automated-tools.html))
+  applies directly. Body rewriting is deferred to a future eval-gated
+  phase (see ADR-0004).
+- **Multi-finding rounds in phase 4.** One deterministic round
+  addresses one finding. Tackling several findings per round is v2.x —
+  it would complicate the diff preview and the rollback contract.
 - **Cross-round memory of declined proposals.** If the operator declines
   the same proposal twice across runs, improve will propose it a third
   time. v2.x may introduce a `.muted_findings` list.
 - **Concurrent improve runs against the same target.** Not protected by
   a lockfile.
-- **Low-severity auto-fixes.** v2.0 only acts on high + medium findings.
-  Low-severity findings surface in the human summary but are not
-  proposal-eligible.
+- **Low-severity auto-fixes.** v2.1 only acts on high + medium findings
+  in phase 4. Phases 1-3 act on file shape, not findings.
+- **Token-budget enforcement.** Phases 1-3 produce diffs the operator
+  reviews; there is no automated "this skill must be ≤ N tokens" gate.
+  ADR-0004 considers this for a future phase.
 
 ---
 
 ## See also
 
 - `commands/improve.md` — the thin user-facing trigger.
-- `skills/harness-evaluate/SKILL.md` — invoked per round for before/after
-  fit assessment.
+- `skills/harness-evaluate/SKILL.md` — invoked per phase (before-fit +
+  regression guard) and per phase-4 round (before/after fit).
 - `skills/harness-build/SKILL.md` — owns the stub generation templates
-  improve reuses for coverage-gap / pain-pattern findings.
+  phase 4 reuses for coverage-gap / pain-pattern findings.
 - `skills/harness-manage/SKILL.md` — reads the same `state.json` improve
   writes; the two skills agree on drift via shared hash.
-- `agents/project-fit-analyzer.md` — produces the findings improve
+- `agents/project-fit-analyzer.md` — produces the findings phase 4
   consumes.
+- `docs/adr/ADR-0004-phase-pipeline.md` — rationale for the
+  `tighten → lateral → sharpen → deterministic` ordering, the
+  deletion-first principle, and the Hamel-compliant eval-gate
+  constraints on each LLM phase.

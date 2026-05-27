@@ -1,6 +1,6 @@
 {
   "name": "meta-harness",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Project-fit harness companion for Claude Code. Builds, evaluates, monitors, and iteratively improves a per-project harness that evolves with the project's own lifecycle. The standard of 'good harness' is the project itself, not a universal rubric.",
   "author": {
     "name": "seokan-jeong"

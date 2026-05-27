@@ -4,7 +4,7 @@
 
 ### A project-fit companion for Claude Code harnesses<br/>that *evolves alongside* your project's own lifecycle.
 
-[![Plugin](https://img.shields.io/badge/plugin-v2.0.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
+[![Plugin](https://img.shields.io/badge/plugin-v2.1.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-737373?style=flat-square)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-d97706?style=flat-square)](https://claude.com/claude-code)
 [![Status](https://img.shields.io/badge/status-stable-success?style=flat-square)](CHANGELOG.md)
@@ -25,7 +25,7 @@
 - [At a glance](#at-a-glance)
 - [Why per-project, not global?](#why-per-project-not-global)
 - [The four commands](#the-four-commands)
-- [The improve loop](#the-improve-loop)
+- [The improve pipeline (v2.1)](#the-improve-pipeline-v21)
 - [Install](#install)
 - [Quick start](#quick-start)
 - [How to read an evaluate report](#how-to-read-an-evaluate-report)
@@ -84,14 +84,27 @@ Four slash commands, each a thin trigger over a procedural skill.
 | `/meta-harness:build`    | Scaffolds a project-tailored harness: 3-file core + per-finding stubs.                                      | Writes only on approval · cwd-guard · diff preview · outer gate.   | `M3 AC-1 AC-8`       |
 | `/meta-harness:evaluate` | LLM-as-judge fit assessment of the current harness against the project.                                     | Emits strict JSON + short summary. No disk writes by default.      | `M2 AC-2 AC-6 AC-7`  |
 | `/meta-harness:manage`   | Read-only LLM-free healthcheck: inventory, fit-drift via hash, internal lint.                               | Hook-callable. Optional `--write-report`.                          | `M4 AC-9`            |
-| `/meta-harness:improve`  | Up to 3 rounds: pick top finding · propose patch · approve · atomic apply · re-evaluate.                    | Stagnation auto-exit on 2 consecutive non-improvements.            | `M5 AC-3 HR-5`       |
+| `/meta-harness:improve`  | 4-phase pipeline: **tighten → lateral → sharpen → deterministic**. Phases 1-3 are LLM with structural invariants; phase 4 is the v2.0 loop. | Per-phase approval gate + regression guard. AC-3 reproducibility via `--phases deterministic`. | `M5 AC-3 HR-5`       |
 
 `build` and `improve` are the only commands that modify disk. `manage` is
 hook-callable and LLM-free; `evaluate` is LLM-as-judge but read-only.
 
 ---
 
-## The improve loop
+## The improve pipeline (v2.1)
+
+v2.1 replaces v2.0's single deterministic loop with a **4-phase
+pipeline**. Each phase has a narrow, eval-gated invariant — no phase
+is allowed to free-form-rewrite a skill body (Hamel's evals-first
+warning). See [ADR-0004](docs/adr/ADR-0004-phase-pipeline.md) for the
+ordering rationale and per-phase invariants.
+
+| # | Phase           | LLM? | Mutation surface                                                | Anti-regression                  |
+|---|-----------------|------|-----------------------------------------------------------------|----------------------------------|
+| 1 | **tighten**     | Yes  | Line **deletions only** (Anthropic's conciseness test)          | Post-phase evaluate → auto-revert on `actionable` rise |
+| 2 | **lateral**     | Yes  | Move sections to `references/<topic>.md` (progressive disclosure) | same                             |
+| 3 | **sharpen**     | Yes  | YAML `description` / `when_to_use` only (body untouched)        | same                             |
+| 4 | **deterministic** | No | v2.0 catalog: stub / line-delete / file-delete                  | HR-5 stagnation streak; 3-round cap (AC-3) |
 
 ```mermaid
 sequenceDiagram
@@ -99,38 +112,56 @@ sequenceDiagram
     actor U as You
     participant I as /improve
     participant E as evaluate
-    participant P as Propose (1 finding)
-    participant A as Apply (atomic + snapshot)
+    participant P1 as Phase 1<br/>tighten
+    participant P2 as Phase 2<br/>lateral
+    participant P3 as Phase 3<br/>sharpen
+    participant P4 as Phase 4<br/>deterministic
 
-    U->>I: invoke
-    loop up to 3 rounds
-        I->>E: fit-evaluate (before)
-        E-->>I: JSON findings + qualitative
-        I->>P: pick top high/medium finding
-        P-->>I: stub-write OR inline edit OR delete-to-snapshot
-        I->>U: diff preview
-        U->>I: approve / reject
-        alt approved
-            I->>A: write
-            A-->>I: snapshot saved
-            I->>E: fit-evaluate (after)
-            E-->>I: delta_actionable
-        else rejected
-            I-->>U: skip round
-        end
-        Note over I: stagnation guard —<br/>2× non-improvement → exit
-    end
+    U->>I: invoke (outer cwd prompt)
+    I->>P1: LLM proposes deletions
+    P1->>U: diff + approval gate
+    U-->>P1: y/N
+    P1->>E: post-phase evaluate (regression guard)
+    I->>P2: LLM proposes extractions
+    P2->>U: diff + approval gate
+    P2->>E: regression guard
+    I->>P3: LLM rewrites YAML descriptions
+    P3->>U: diff + approval gate
+    P3->>E: regression guard
+    I->>P4: v2.0 loop (up to 3 rounds, per-round approval)
+    Note over P4: stagnation auto-exit on 2× non-improvement
     I-->>U: final report
 ```
 
-The proposer is deterministic by finding category:
+**`--phases` selects a subset.** Common patterns:
 
-| Finding category | Proposed action                                                                  |
-| ---------------- | -------------------------------------------------------------------------------- |
-| `coverage-gap`   | Generate `.claude/skills/<slug>/SKILL.md` or `.claude/agents/<slug>.md` stub     |
-| `pain-pattern`   | Same — coverage of a recurring friction.                                         |
-| `stale-reference` | In-place edit removing the dead reference.                                      |
-| `over-coverage`  | Move the file into `.meta-harness/snapshots/`.                                   |
+```bash
+# Default — full 4-phase pipeline
+/meta-harness:improve
+
+# v2.0-compatible / AC-3 reproducible (pin for CI / golden tests)
+/meta-harness:improve --phases deterministic --auto --max-rounds 3
+
+# Subtract-only — no additive changes
+/meta-harness:improve --phases tighten,lateral
+
+# Description-only sharpen pass (highest-leverage field per Anthropic)
+/meta-harness:improve --phases sharpen
+
+# Dry-run any combo
+/meta-harness:improve --no-apply
+```
+
+### Phase 4 deterministic catalog
+
+The phase-4 proposer is deterministic by finding category:
+
+| Finding category  | Proposed action                                                              |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `coverage-gap`    | Generate `.claude/skills/<slug>/SKILL.md` or `.claude/agents/<slug>.md` stub |
+| `pain-pattern`    | Same — coverage of a recurring friction.                                     |
+| `stale-reference` | In-place edit removing the dead reference.                                   |
+| `over-coverage`   | Move the file into `.meta-harness/snapshots/`.                               |
 
 Stubs land in the `.claude/` canonical locations because the Claude Code
 runtime auto-loads them from there. `evaluate` and `manage` enumerate
@@ -177,9 +208,13 @@ At your project root:
 /meta-harness:manage --json-only
 #  → inventory + drift bit + lint warnings
 
-# 4 ── Iteratively improve
+# 4 ── Iteratively improve (4-phase pipeline by default)
 /meta-harness:improve
-#  → up to 3 rounds, each with diff preview + your approval before apply
+#  → tighten → lateral → sharpen → deterministic
+#  → each phase: diff preview + approval + post-phase regression guard
+
+# 4b ── v2.0-compatible (deterministic phase only; AC-3 reproducible)
+/meta-harness:improve --phases deterministic --auto --max-rounds 3
 ```
 
 > All four commands respect a **cwd guard** (HR-3): they refuse to operate
@@ -310,6 +345,7 @@ cp -R .meta-harness/snapshots/<UTC>/. .
 | ADR                                                                  | Title                       | The question it answers                                              |
 | -------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
 | [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md)              | Slash + opt-in hooks        | Why are slash commands primary and hooks default-OFF?                |
+| [ADR-0004](docs/adr/ADR-0004-phase-pipeline.md)                      | Phase pipeline for improve  | Why `tighten → lateral → sharpen → deterministic`? Why eval-gated invariants per phase rather than free-form rewrites? |
 
 > v1.0's ADR-0001 (static-KB choice) and ADR-0002 (single-evaluator agent)
 > are retired in v2 — the static KB itself was retired, and the single

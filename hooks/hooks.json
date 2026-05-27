@@ -1,6 +1,6 @@
 {
   "_format_note": "Meta-harness's own hook registry. Both hooks ship OFF per ADR-0003. The plugin's runtime equivalent (Claude Code) should treat enabled:false as a no-op; flip to true in the user's local copy to opt in. AC-5 verification: jq '.hooks[].enabled' must yield only `false` values when this file is shipped.",
-  "_plugin_version": "2.0.0",
+  "_plugin_version": "2.1.0",
   "hooks": [
     {
       "name": "session-start-healthcheck",

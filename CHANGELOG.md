@@ -7,6 +7,98 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [2.1.0] — 2026-05-28
+
+**Improve becomes a phase pipeline, not a single deterministic loop.**
+v2.0's `improve` was rule-based and addressed coverage gaps by creating
+empty stubs. Researching how Karpathy, Anthropic, and practitioners
+like Hamel Husain frame context engineering surfaced a strong
+convergence: the failure mode isn't "harnesses are too thin" — it's
+"harnesses bloat in the wrong direction and Claude starts ignoring
+them" (Anthropic), or "context fills past the U-curve peak and
+performance degrades" (Karpathy). v2.1 reframes `improve` as a
+**phase pipeline** that subtracts and reshapes before it adds.
+
+### Added
+
+- **4-phase pipeline in `/meta-harness:improve`**. Default order:
+  `tighten → lateral → sharpen → deterministic`. Each phase has its
+  own approval gate + snapshot + regression guard:
+  - **Phase 1 — tighten** (LLM, deletion-only). Applies Anthropic's
+    literal *"Would removing this cause Claude to make mistakes?"*
+    conciseness test to every harness body file. The LLM proposes
+    line-deletions; a deletion-only invariant enforces that no line is
+    added or rewritten. Auto-reverts from snapshot if the post-phase
+    `actionable` finding count rises.
+  - **Phase 2 — lateral** (LLM, structural). Applies Anthropic's
+    progressive-disclosure pattern (L1 metadata / L2 SKILL.md body /
+    L3 bundled references): SKILL.md files > 300 lines or with single
+    sections > 100 lines get heavy content moved to
+    `references/<topic>.md`; the body retains a one-line pointer.
+    Mirrors the official `pdf` skill's `FORMS.md` pattern.
+  - **Phase 3 — sharpen** (LLM, YAML-description-only). Rewrites the
+    YAML `description` / `when_to_use` fields of skills and agents to
+    improve trigger accuracy. The body is **never** touched
+    (body-untouched invariant). Target 200-300 chars per description.
+  - **Phase 4 — deterministic**. The v2.0 catalog-driven loop:
+    coverage-gap → stub, stale-reference → line delete,
+    over-coverage → file delete. Unchanged from v2.0.
+- **`--phases <csv>` flag**. Selects a comma-separated subset of
+  `{tighten, lateral, sharpen, deterministic}`. Order normalized to
+  canonical. `--phases deterministic` preserves v2.0 behavior byte-for-
+  byte (AC-3 reproducibility).
+- **State schema v2**. `.improve-state.json` schema_version bumped from
+  1 → 2. Each round gains a `phase` field. `meta` gains
+  `phases_requested` + `phases_executed`. v2.0 state files (schema
+  v1) read-compatible: missing `phase` defaults to `"deterministic"`.
+- **`pipeline_complete` exit_reason** — emitted when all requested
+  phases completed normally without early termination.
+- **`regressed: true` on round records** — set when a phase's
+  post-fit `actionable` count rose above before-fit; the phase
+  auto-reverted from snapshot. Non-fatal; pipeline advances to next
+  phase.
+- **ADR-0004** — Phase pipeline ordering rationale. Documents why
+  `tighten → lateral → sharpen → deterministic` is the canonical
+  order, citing Karpathy's U-curve, Anthropic's conciseness test, and
+  Hamel's "no auto-rewrite without evals" warning.
+
+### Changed
+
+- **AC-3 contract scoped to phase 4.** The 3-round cap and the
+  `"max 3 rounds reached"` literal are still binding, but only when
+  `--phases deterministic` is set. Callers depending on AC-3
+  reproducibility (CI gates, golden-file tests) MUST pin the flag.
+- **Snapshot path corrected in `harness-improve` skill.** Step 6 of
+  the deterministic loop used the legacy `.snapshot/` path; v2.0
+  CHANGELOG declared the canonical path is `snapshots/` but the
+  SKILL.md was not updated. Fixed.
+
+### Safety
+
+- All HR-1/3/4/5 guards preserved. Phase 1's deletion-only invariant
+  and Phase 3's body-untouched invariant are new structural guards
+  that make over-deletion / silent body rewrite impossible by
+  construction.
+- The per-phase regression guard (auto-revert on `actionable` rise)
+  is Hamel's eval-gate principle applied to the LLM phases:
+  the LLM proposes; the analyzer judges; the harness reverts on
+  measurable regression.
+- LLM phases are NOT bit-reproducible. AC-3 reproducibility is
+  preserved only via the `--phases deterministic` escape hatch.
+
+### Out of scope for v2.1 (deferred)
+
+- **LLM-based body rewriting** (free-form prose rewrite for
+  "richness"). Hamel's *"if you delegate this task to an automated
+  tool too early, you risk never fully understanding your own
+  requirements or the model's failure modes"* warning applies
+  directly. Deferred to an eval-gated future phase.
+- **Token-budget enforcement.** No automated "this skill must be ≤ N
+  tokens" gate yet.
+- **Multi-finding rounds in phase 4.** Still one finding per round.
+
+---
+
 ## [2.0.0] — 2026-05-27
 
 **Identity change.** v1 was a *generic 4-bucket harness scorer* — every
@@ -191,6 +283,7 @@ historical reference only.
 
 ---
 
+[2.1.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.0
 [2.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.0.0
 [1.0.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.1
 [1.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.0
