@@ -8,8 +8,9 @@
       "name": "meta-harness",
       "description": "Project-level Claude Code harness builder/manager/improver. Scores Persona, Capabilities, Runtime, and Meta-Governance against a static KB rubric using an LLM-as-judge evaluator.",
       "source": {
-        "source": "local-path",
-        "path": "./"
+        "source": "github",
+        "repo": "seokan-jeong/meta-harness",
+        "ref": "v1.0.1"
       }
     }
   ]
