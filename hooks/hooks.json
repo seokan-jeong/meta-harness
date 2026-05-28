@@ -1,6 +1,6 @@
 {
-  "_format_note": "Sample hook config in real Claude Code schema. NOT auto-loaded by the plugin (the v2.1.1 plugin.json intentionally omits a `hooks` field, per ADR-0003 default-OFF). To enable: copy the entries under `hooks` below into your own `.claude/settings.json` (project-local) or `~/.claude/settings.json` (global). Both scripts hard-check for `.meta-harness/` and exit 0 silently when not in a harnessed directory, but registering the hooks at all is the operator's conscious opt-in.",
-  "_plugin_version": "2.1.1",
+  "_format_note": "Sample hook config in real Claude Code schema. NOT auto-loaded by the plugin (the v2.1.2 plugin.json intentionally omits a `hooks` field, per ADR-0003 default-OFF). To enable: copy the entries under `hooks` below into your own `.claude/settings.json` (project-local) or `~/.claude/settings.json` (global). Both scripts hard-check for `.meta-harness/` and exit 0 silently when not in a harnessed directory, but registering the hooks at all is the operator's conscious opt-in.",
+  "_plugin_version": "2.1.2",
   "_descriptions": {
     "session-start-healthcheck": "On every Claude Code session start in a directory that already has a harness, runs /meta-harness:manage --json-only --silent --write-report and stores the JSON under .meta-harness/reports/. Opt-in. ADR-0003 default-OFF rationale: silent disk writes from a hook are a surprise vector; the operator must consciously enable.",
     "stop-evaluate": "On Claude Code Stop in a harnessed directory, runs /meta-harness:evaluate --json-only and writes the JSON report under .meta-harness/reports/. Opt-in. An evaluate run can take 30-120s and is billable (LLM-as-judge); auto-triggering on every Stop is a footgun. Same default-OFF rationale."

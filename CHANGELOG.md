@@ -7,6 +7,41 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [2.1.2] — 2026-05-28
+
+**Maintenance / building-harness separation.** No behavior change for
+plugin consumers. The four slash commands, the four skills, the analyzer
+agent, both hook samples, and `plugin.json`'s file enumeration are
+byte-identical to v2.1.1. This release exists to (a) formalize the
+separation between the meta-harness plugin product and the maintainer's
+own `.claude/` building-harness, and (b) advance the marketplace-tracked
+tag so consumers running `/plugin install meta-harness@meta-harness` see
+the current head.
+
+### Changed
+
+- `.gitignore` now excludes `.claude/`. The repo's `.claude/` directory
+  holds the maintainer's project-local Claude Code tooling for *building*
+  meta-harness (release skill, scratch agents, dogfooding state). It is
+  NOT part of the plugin product, which lives at the top level
+  (`skills/`, `agents/`, `commands/`, `hooks/`) and is wired through
+  `.claude-plugin/plugin.json`. The new rule keeps that tooling out of
+  the released tag.
+
+### Unchanged
+
+- All four slash commands and their skill bodies (`harness-build`,
+  `harness-evaluate`, `harness-manage`, `harness-improve`).
+- The 4-phase improve pipeline (tighten → lateral → sharpen →
+  deterministic) introduced in v2.1.0.
+- `agents/project-fit-analyzer.md`.
+- Both hook samples (`hooks/session-start-healthcheck.sh`,
+  `hooks/stop-evaluate.sh`).
+- The plugin install surface — same skills, same agent, same hook
+  documentation file.
+
+---
+
 ## [2.1.1] — 2026-05-28
 
 **Installable-plugin fix release.** v2.1.0 (and retroactively v2.0.0)
@@ -324,6 +359,7 @@ historical reference only.
 
 ---
 
+[2.1.2]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.2
 [2.1.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.1
 [2.1.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.0
 [2.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.0.0
