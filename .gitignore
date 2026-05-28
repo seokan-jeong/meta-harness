@@ -13,5 +13,11 @@
 .meta-harness/reports/
 .meta-harness/.snapshot/
 
+# Project-local Claude Code harness used by the maintainer to BUILD the
+# meta-harness plugin (release tooling, scratch skills, etc.). This is the
+# harness-that-builds-meta-harness, not meta-harness itself; it must not
+# leak into the released plugin.
+.claude/
+
 # macOS metadata
 .DS_Store
