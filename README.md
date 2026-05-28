@@ -4,7 +4,7 @@
 
 ### A project-fit companion for Claude Code harnesses<br/>that *evolves alongside* your project's own lifecycle.
 
-[![Plugin](https://img.shields.io/badge/plugin-v2.1.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
+[![Plugin](https://img.shields.io/badge/plugin-v2.1.1-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-737373?style=flat-square)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-d97706?style=flat-square)](https://claude.com/claude-code)
 [![Status](https://img.shields.io/badge/status-stable-success?style=flat-square)](CHANGELOG.md)
@@ -263,30 +263,59 @@ exist before returning the JSON (no hallucinated paths).
 
 ## Opt-in hooks (default OFF)
 
-The plugin ships two hook scripts under `hooks/` but both are registered
-with `enabled: false` per [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md).
-Hook-triggered runs of `manage` or `evaluate` write to disk and (for
-`evaluate`) cost LLM tokens — the operator should consciously opt in.
+The plugin ships two hook scripts under `hooks/` but the plugin's
+`plugin.json` intentionally omits a `hooks` field per
+[ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md). Hook-triggered
+runs of `manage` or `evaluate` write to disk and (for `evaluate`) cost
+LLM tokens — the operator must consciously register them in their own
+`settings.json`. The hook scripts themselves additionally hard-check
+for `.meta-harness/` and `exit 0` silently on non-harnessed projects,
+so the registration is the only meaningful opt-in step.
 
 <details>
 <summary><b>How to enable, where reports land, and how to roll back</b></summary>
 
 ### Enable
 
+Copy the entries from `hooks/hooks.json` (a real-schema sample) into
+your own `~/.claude/settings.json` (global) or `<project>/.claude/settings.json`
+(project-local):
+
 ```jsonc
-// hooks/hooks.json
+// ~/.claude/settings.json
 {
-  "hooks": [
-    { "name": "session-start-healthcheck", "enabled": true, /* ... */ },
-    { "name": "stop-evaluate",             "enabled": true, /* ... */ }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start-healthcheck.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-evaluate.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
+
+`${CLAUDE_PLUGIN_ROOT}` resolves at hook-execution time to this plugin's
+install path.
 
 Both hooks are **idempotent and harness-detecting** — they silently
 `exit 0` if the cwd is not a meta-harness-built project (signal:
 `.meta-harness/` directory must exist alongside `CLAUDE.md` or
-`.claude/agents/project-fit-analyzer.md`). So flipping them on globally is safe.
+`.claude/agents/project-fit-analyzer.md`). So registering them globally is safe.
 
 ### Where reports land
 

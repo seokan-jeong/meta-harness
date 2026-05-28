@@ -1,6 +1,6 @@
 {
   "name": "meta-harness",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Project-fit harness companion for Claude Code. Builds, evaluates, monitors, and iteratively improves a per-project harness that evolves with the project's own lifecycle. The standard of 'good harness' is the project itself, not a universal rubric.",
   "author": {
     "name": "seokan-jeong"
@@ -26,10 +26,9 @@
     "./agents/project-fit-analyzer.md"
   ],
   "skills": [
-    "./skills/harness-evaluate/SKILL.md",
-    "./skills/harness-build/SKILL.md",
-    "./skills/harness-manage/SKILL.md",
-    "./skills/harness-improve/SKILL.md"
-  ],
-  "hooks": "./hooks/hooks.json"
+    "./skills/harness-evaluate",
+    "./skills/harness-build",
+    "./skills/harness-manage",
+    "./skills/harness-improve"
+  ]
 }

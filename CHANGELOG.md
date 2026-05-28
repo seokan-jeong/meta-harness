@@ -7,6 +7,47 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [2.1.1] — 2026-05-28
+
+**Installable-plugin fix release.** v2.1.0 (and retroactively v2.0.0)
+shipped a `plugin.json` whose `skills` array pointed at `SKILL.md`
+files directly, and a `hooks/hooks.json` that used an array shape
+rather than the record (event-keyed object) shape Claude Code's plugin
+loader requires. Both made the plugin unloadable: skills failed with
+*"path is a file; skills entries must be directories"*, hooks failed
+with *"expected record, received array"*. v2.1.1 corrects both with no
+behavior change to the four commands.
+
+### Fixed
+
+- `.claude-plugin/plugin.json` `skills` entries now point at the skill
+  **directories** (`./skills/harness-build`, etc.) rather than the
+  individual `SKILL.md` files. The Claude Code runtime auto-discovers
+  `SKILL.md` inside each directory.
+- `.claude-plugin/plugin.json` no longer references `hooks/hooks.json`
+  via the `hooks` field. The ADR-0003 default-OFF promise is preserved
+  by NOT registering hooks at the plugin level. Users who want the
+  hooks now copy the sample into their own `settings.json` — see
+  README "Opt-in hooks".
+- `hooks/hooks.json` rewritten as a copyable sample in the **real**
+  Claude Code hooks schema (record keyed by event name → array of
+  `{matcher?, hooks: [{type: "command", command}]}` objects). The
+  file is documentation only; it is not auto-loaded by the plugin.
+- README "Opt-in hooks (default OFF)" section rewritten to reflect
+  the actual opt-in mechanism (copy sample → user's settings.json),
+  including a working real-schema example using `${CLAUDE_PLUGIN_ROOT}`.
+
+### Unchanged
+
+- Skill / agent / command bodies. The four slash commands behave
+  identically to v2.1.0.
+- Hook scripts (`hooks/session-start-healthcheck.sh`,
+  `hooks/stop-evaluate.sh`) — same hard `.meta-harness/`-presence
+  check, same silent-no-op on non-harnessed cwd.
+- The 4-phase improve pipeline introduced in v2.1.0 is untouched.
+
+---
+
 ## [2.1.0] — 2026-05-28
 
 **Improve becomes a phase pipeline, not a single deterministic loop.**
@@ -283,6 +324,7 @@ historical reference only.
 
 ---
 
+[2.1.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.1
 [2.1.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.0
 [2.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.0.0
 [1.0.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v1.0.1
