@@ -8,6 +8,7 @@ invoked_by:
 invokes: []
 related_requirements: [FR-2, NFR-1, NFR-3, NFR-4, NFR-5, HR-1, HR-3, HR-4, AC-9]
 related_adrs: [ADR-0001, ADR-0003]
+user-invocable: false
 ---
 
 # Harness Manage — workflow skill

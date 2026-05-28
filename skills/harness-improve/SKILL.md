@@ -8,6 +8,7 @@ invokes:
   - skills/harness-evaluate (per-round before/after fit assessment in phase 4 + per-phase delta checks in phases 1-3)
 related_requirements: [FR-3, NFR-1, NFR-4, NFR-5, HR-1, HR-3, HR-4, HR-5, AC-3]
 related_adrs: [ADR-0003, ADR-0004]
+user-invocable: false
 ---
 
 # Harness Improve — workflow skill

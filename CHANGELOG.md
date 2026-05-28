@@ -7,6 +7,48 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [2.1.3] — 2026-05-28
+
+**Slash-menu UX fix.** The four workflow skills (`harness-build`,
+`harness-evaluate`, `harness-improve`, `harness-manage`) were always
+designed as internal procedures invoked by the four thin slash commands
+(`/meta-harness:build`, `/meta-harness:evaluate`, `/meta-harness:improve`,
+`/meta-harness:manage`) — see `commands/build.md` line 14: *"This is the
+thin trigger for the harness builder. The actual procedure lives in the
+`harness-build` skill."* But Claude Code's slash picker surfaced both
+layers, so users typing `/meta-harness` saw 8 entries (4 commands + 4
+workflow skills named "Harness Build Workflow", "Harness Evaluate
+Workflow", etc.) with no clear signal about which to invoke. v2.1.3
+hides the workflow skills from the user-invocable slash menu while
+leaving them fully invocable from the commands and agents that back
+them.
+
+### Fixed
+
+- `skills/harness-build/SKILL.md`,
+  `skills/harness-evaluate/SKILL.md`,
+  `skills/harness-improve/SKILL.md`, and
+  `skills/harness-manage/SKILL.md` now declare `user-invocable: false`
+  in their frontmatter. The Claude Code slash picker no longer lists
+  the four "Harness * Workflow" entries as user-typeable. Typing
+  `/meta-harness` now shows exactly the four commands the user is
+  expected to call.
+
+### Unchanged
+
+- All four slash commands (`/meta-harness:build`,
+  `/meta-harness:evaluate`, `/meta-harness:improve`,
+  `/meta-harness:manage`) — same triggers, same arguments, same
+  procedures.
+- Each skill body, its `invoked_by` / `invokes` contract, requirements
+  links, and ADR links.
+- `.claude-plugin/plugin.json`'s `skills` enumeration — the four skill
+  directories are still listed; only their *user-facing* visibility
+  changed.
+- `agents/project-fit-analyzer.md`, both hook samples, README content.
+
+---
+
 ## [2.1.2] — 2026-05-28
 
 **Maintenance / building-harness separation.** No behavior change for

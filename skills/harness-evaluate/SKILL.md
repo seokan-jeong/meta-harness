@@ -8,6 +8,7 @@ invokes:
   - agents/project-fit-analyzer
 related_requirements: [FR-4, NFR-1, NFR-3, NFR-5, HR-1, HR-3, HR-4, AC-2, AC-6, AC-7]
 related_adrs: [ADR-0002, ADR-0003]
+user-invocable: false
 ---
 
 # Harness Evaluate — workflow skill
