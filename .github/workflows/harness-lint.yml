@@ -1,0 +1,31 @@
+name: harness-lint
+
+# Consistency CI for the meta-harness plugin's OWN files. The shipped skills
+# deliberately refuse to edit the plugin itself (harness-build Invariant 6),
+# so this workflow is the only automated guard against the cross-skill
+# invariant drift, dangling ADR references, and version-skew that hand-edits
+# can introduce. See scripts/check-skill-invariants.sh and CLAUDE.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "commands/**"
+      - "docs/adr/**"
+      - ".claude-plugin/**"
+      - "hooks/hooks.json"
+      - "README.md"
+      - "scripts/check-skill-invariants.sh"
+      - ".github/workflows/harness-lint.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  invariants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # jq and bash are preinstalled on ubuntu-latest runners.
+      - name: Check harness invariants
+        run: bash scripts/check-skill-invariants.sh
