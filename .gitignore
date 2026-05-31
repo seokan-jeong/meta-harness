@@ -19,5 +19,9 @@
 # leak into the released plugin.
 .claude/
 
+# Auto-generated per-directory context files (regenerated each session by
+# session tooling; marked "Do not edit" — must never be tracked).
+.context.md
+
 # macOS metadata
 .DS_Store
