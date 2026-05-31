@@ -48,7 +48,7 @@ Four slash commands. No hook support.
 
 ### Option C — Slash + opt-in hook hybrid (CHOSEN)
 
-The four slash commands are the primary entrypoint. Hooks ship but default to `enabled: false`; users must explicitly opt in.
+The four slash commands are the primary entrypoint. Hooks ship as a sample config that the plugin does not auto-load; users must explicitly opt in by registering them in their own `settings.json`.
 
 - Pros:
   - Default behavior is safe — user intent preserved, HR-3 guard runs naturally
@@ -92,10 +92,10 @@ Each slash command, when invoked:
 
 ### Opt-in hooks (default OFF)
 
-- `hooks/hooks.json` registers two hooks, both `enabled: false` by default:
+- `hooks/hooks.json` is a sample registering two hooks; the plugin does not auto-load it (`plugin.json` omits a `hooks` field), so both stay off until the operator registers them:
   - `SessionStart` → `hooks/session-start-healthcheck.sh` → `/meta-harness:manage --silent`
-  - `Stop` → `hooks/stop-evaluate.sh` → `/meta-harness:evaluate --silent`
-- Users enable hooks by editing `hooks/hooks.json` (or the project's `.claude/settings.json`) to set `enabled: true`.
+  - `Stop` → `hooks/stop-evaluate.sh` → `/meta-harness:evaluate --json-only` (evaluate has no `--silent`; the hook captures stdout via redirect)
+- Users enable hooks by copying the `hooks` entries from `hooks/hooks.json` into their own `.claude/settings.json` (project-local) or `~/.claude/settings.json` (global) — there is no `enabled` flag.
 - Hooks are non-interactive, so cwd confirmation is replaced by **fail-closed** behavior: a hook that cannot satisfy the cwd guard exits immediately and writes the reason to stderr.
 - Hook output is written to `.meta-harness/reports/<timestamp>.json` inside the target project (PR-4 mitigation). The directory is auto-created on first hook run.
 

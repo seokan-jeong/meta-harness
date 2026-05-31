@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # meta-harness SessionStart hook — opt-in healthcheck.
 #
-# Default-OFF per ADR-0003. Set hooks/hooks.json `session-start-healthcheck`
-# entry's `enabled: true` (in the user's local clone) to activate.
+# Default-OFF per ADR-0003. To activate, copy this hook's entry from
+# hooks/hooks.json into your own .claude/settings.json (or ~/.claude/settings.json).
 #
 # Behavior: when the current directory contains a meta-harness-built harness
 # (signal: `.meta-harness/` dir MUST exist AND at least one of `CLAUDE.md` or

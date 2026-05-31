@@ -7,7 +7,7 @@ invoked_by:
 invokes:
   - agents/project-fit-analyzer
 related_requirements: [FR-4, NFR-1, NFR-3, NFR-5, HR-1, HR-3, HR-4, AC-2, AC-6, AC-7]
-related_adrs: [ADR-0002, ADR-0003]
+related_adrs: [ADR-0003]
 user-invocable: false
 ---
 
@@ -100,11 +100,20 @@ contents reach the analyzer.
 
 | Pattern                          | Reason                                |
 | -------------------------------- | ------------------------------------- |
-| `.git/`                          | Repo metadata                         |
-| `.meta-harness/`                 | Plugin's own state directory          |
+| `.git/` *(repo root only)*       | Repo metadata                         |
+| `.meta-harness/` *(repo root only)* | The project's own meta-harness runtime state dir |
 | `node_modules/`, `vendor/`, `target/`, `dist/`, `build/`, `.next/`, `.nuxt/`, `.svelte-kit/` | Build / dependency artifacts |
 | `.venv/`, `venv/`, `__pycache__/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/` | Python build / cache    |
 | `.DS_Store`, `Thumbs.db`         | OS noise                              |
+
+> **Anchoring (load-bearing).** The two patterns marked *(repo root only)*
+> prune ONLY the top-level directory — they MUST NOT prune identically-named
+> directories nested deeper. A legitimate path such as
+> `templates/meta-gov/.meta-harness/.gitignore.tpl` must stay in the tree.
+> Implement them root-anchored (guard the prune by depth/path, NOT a bare
+> `find -name .meta-harness -prune`, which over-matches nested dirs). The
+> build/cache patterns (`node_modules/`, `.venv/`, …) match at ANY depth, by
+> contrast.
 
 **Secret denylist (HR-4):** drop any file whose basename matches:
 

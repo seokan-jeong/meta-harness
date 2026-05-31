@@ -7,7 +7,7 @@ invoked_by:
   - hooks/session-start-healthcheck.sh (opt-in, default OFF — see ADR-0003)
 invokes: []
 related_requirements: [FR-2, NFR-1, NFR-3, NFR-4, NFR-5, HR-1, HR-3, HR-4, AC-9]
-related_adrs: [ADR-0001, ADR-0003]
+related_adrs: [ADR-0003]
 user-invocable: false
 ---
 
@@ -394,8 +394,9 @@ run `/meta-harness:evaluate` next.
   --write-report ".meta-harness/reports/$(date -u +%Y%m%dT%H%M%SZ)-manage.json"
 ```
 
-`--silent` suppresses stdout entirely. The default hooks registry has
-this hook `enabled: false`; the operator must explicitly opt in.
+`--silent` suppresses stdout entirely. The hooks sample (`hooks/hooks.json`)
+is not auto-loaded; the operator must explicitly opt in by copying its
+entries into `settings.json`.
 
 Output reports land in `<target>/.meta-harness/reports/`. Retention is
 the operator's responsibility.
