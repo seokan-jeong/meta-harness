@@ -7,6 +7,41 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [2.1.4] — 2026-06-01
+
+**Self-evaluation hardening.** Running `/meta-harness:evaluate` on the
+plugin's own repository surfaced — and this release fixes — a real sketch
+bug plus several documentation/reference inconsistencies in the shipped
+harness.
+
+### Fixed
+
+- **`harness-evaluate` sketch ignore-list is now root-anchored.** The
+  `.git/` and `.meta-harness/` prune patterns matched at any depth, so
+  evaluating a project containing a nested directory of either name (e.g. a
+  template path like `templates/meta-gov/.meta-harness/`) silently dropped
+  legitimate files and could yield a false "missing" finding. They now
+  prune only at the project root.
+- **Retired ADR references removed.** `harness-build`, `harness-evaluate`,
+  and `harness-manage` no longer list the v1-retired ADR-0001/ADR-0002 in
+  their `related_adrs` frontmatter (only ADR-0003/ADR-0004 ship under
+  `docs/adr/`).
+- **Phantom `evaluate --silent` flag corrected.** ADR-0003's Stop-hook line
+  now shows `/meta-harness:evaluate --json-only` — `evaluate` exposes no
+  `--silent` flag (that is `manage`-only).
+- **Hook-enablement docs reconciled.** ADR-0003, both hook scripts, and
+  `harness-manage` described a non-existent `enabled: true/false` toggle in
+  `hooks/hooks.json`. They now describe the real mechanism — copying the
+  `hooks` entries into your own `.claude/settings.json` — already documented
+  in the file's own `_format_note` and the README.
+
+### Internal
+
+- Added a maintainer-facing `CLAUDE.md`, a harness consistency linter
+  (`scripts/check-skill-invariants.sh`, 6 checks) and a CI workflow that
+  runs it on push/PR. Repo tooling only — no change to installed plugin
+  behavior.
+
 ## [2.1.3] — 2026-05-28
 
 **Slash-menu UX fix.** The four workflow skills (`harness-build`,
@@ -401,6 +436,7 @@ historical reference only.
 
 ---
 
+[2.1.4]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.4
 [2.1.3]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.3
 [2.1.2]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.2
 [2.1.1]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.1
