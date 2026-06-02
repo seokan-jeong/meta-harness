@@ -132,6 +132,27 @@ for t in "${REQUIRED_TEMPLATES[@]}"; do
 done
 [ "$FAILS" -eq "$before" ] && note_ok "all ${#REQUIRED_TEMPLATES[@]} required build templates present"
 
+# ---------------------------------------------------------------------------
+# 7. --debate flag confined to the evaluate command + skill (ADR-0005).
+#    --debate is the opt-in carrier for the Workflow-tool debate panel. It must
+#    appear ONLY in commands/evaluate.md and skills/harness-evaluate/SKILL.md.
+#    Leakage into improve/build/manage or a hook would breach AC-3 byte-
+#    reproducibility, the Workflow per-run opt-in contract, or the cost
+#    envelope. We scan the PRODUCT surfaces only — docs/adr, README, and
+#    CHANGELOG legitimately document the flag and are intentionally excluded.
+# ---------------------------------------------------------------------------
+echo "[7] --debate confined to evaluate command + skill (ADR-0005 scope boundary)"
+before=$FAILS
+DEBATE_ALLOW=" commands/evaluate.md skills/harness-evaluate/SKILL.md "
+debate_hits=$(grep -lF -- '--debate' "${SKILLS[@]}" "${COMMANDS[@]}" hooks/* 2>/dev/null | sort -u)
+for f in $debate_hits; do
+  case "$DEBATE_ALLOW" in
+    *" $f "*) : ;;
+    *) note_fail "--debate appears in $f (must be confined to: commands/evaluate.md + skills/harness-evaluate/SKILL.md)";;
+  esac
+done
+[ "$FAILS" -eq "$before" ] && note_ok "--debate confined to the evaluate command + skill"
+
 echo
 if [ "$FAILS" -eq 0 ]; then
   echo "harness invariants: ALL CHECKS PASS"

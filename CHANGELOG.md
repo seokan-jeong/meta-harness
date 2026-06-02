@@ -7,6 +7,27 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Opt-in multi-agent debate for `evaluate` (`--debate`, ADR-0005).**
+  `/meta-harness:evaluate --debate` replaces the single analyzer pass with a
+  Claude Code Workflow-tool panel — 2 diverse-lens `project-fit-analyzer`
+  proposers → 1 free-form critic → 1 synthesis pass that unions the
+  evidence-grounded findings, drops hallucinations/duplicates, and reconciles
+  severity — for higher recall and severity calibration. The typed flag is
+  the Workflow tool's required opt-in; **default OFF**. The default path,
+  `build`, all of `improve` (AC-3 phase 4 included), `manage`, and every
+  hook/nested/transitive evaluate call are byte-for-byte unchanged and never
+  fire a panel. Fail-soft to a single pass with `EVAL_DEBATE_UNAVAILABLE` if
+  the Workflow tool is absent. `project-fit-analyzer.md` stays the sole schema
+  owner (additive optional `debate_transcript` input + a synthesis-mode note +
+  an injection-guard extension); AC-6 is unchanged and verified on the default
+  path. New linter check 7 confines `--debate` to the evaluate command + skill.
+
+---
+
 ## [2.1.4] — 2026-06-01
 
 **Self-evaluation hardening.** Running `/meta-harness:evaluate` on the

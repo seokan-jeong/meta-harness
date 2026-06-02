@@ -1,7 +1,7 @@
 ---
 name: evaluate
 description: "Assess how well the current project's Claude Code harness fits the project's actual shape and needs. Invokes the project-fit-analyzer agent and returns strict JSON fit findings plus a short human summary."
-argument-hint: "[--target <path>] [--json-only] [--raw-out <file>]"
+argument-hint: "[--target <path>] [--json-only] [--raw-out <file>] [--debate]"
 allowed-tools:
   - Read
   - Glob
@@ -40,6 +40,7 @@ You can also let an opt-in `Stop` hook call this in the background
 | `--target <path>` | current working directory | Project root to evaluate. Must exist, must be a directory, must NOT be `/`, `$HOME`, or `/tmp`. |
 | `--json-only` | off | Suppress the human summary; emit only the strict JSON document. Useful for hook callers and scripted pipelines. |
 | `--raw-out <file>` | (none) | If set, write the strict JSON document to this path atomically (`.tmp` then `mv`), in addition to stdout. |
+| `--debate` | off | **Opt-in** (ADR-0005). Replace the single analyzer pass with a Claude Code **Workflow-tool** debate panel (2 diverse-lens proposers → 1 critic → 1 synthesis) for higher recall + severity calibration. The typed flag IS the Workflow tool's required user opt-in. Parsed AFTER the HR-3 cwd guard; **never** passed by hooks or by `build`/`improve`. If the Workflow tool is unavailable, falls back to a single pass with an `EVAL_DEBATE_UNAVAILABLE` stderr notice. Same strict-JSON output; not a reproducibility guarantee (AC-6 covers the default path). |
 
 If no `--target` is given, the current working directory is used.
 
@@ -119,6 +120,9 @@ See `skills/harness-evaluate/SKILL.md` for the authoritative procedure.
 
 # Hook-friendly: silent JSON-only invocation.
 /meta-harness:evaluate --json-only
+
+# Opt-in multi-agent debate panel (higher recall + severity calibration).
+/meta-harness:evaluate --debate
 ```
 
 ## Related
@@ -128,3 +132,4 @@ See `skills/harness-evaluate/SKILL.md` for the authoritative procedure.
 - `commands/build.md` — bootstraps the harness this evaluator reads.
 - `commands/improve.md` — consumes the findings this evaluator produces.
 - `ADR-0003` (slash + opt-in hooks).
+- `ADR-0005` (opt-in `--debate` multi-agent panel for the analyzer pass).

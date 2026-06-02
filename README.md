@@ -361,6 +361,7 @@ cp -R .meta-harness/snapshots/<UTC>/. .
 | **Atomic write**     | All disk writes use `.tmp.$$` → `mv`. Build/improve snapshot pre-overwrite files under `.meta-harness/snapshots/<UTC>/`.                                  | `HR-1`         |
 | **Cap + stagnation** | Improve never runs > 3 rounds; 2 consecutive `delta_actionable ≥ 0` auto-exits.                                                                            | `AC-3 HR-5`    |
 | **Injection guard**  | Project and harness file content is fed to the analyzer as **data**, not as instructions.                                                                  | `HR-2`         |
+| **Opt-in debate**    | `evaluate --debate` runs a Workflow-tool debate panel; **default OFF**, zero cost unless typed, never fired by hooks/build/improve, fail-soft to single-pass. | `ADR-0005`     |
 
 > **Threat model for HR-4** — local defense-in-depth, *not* an API-transport
 > guard. The Claude Code host handles transport; meta-harness adds no new
@@ -375,6 +376,7 @@ cp -R .meta-harness/snapshots/<UTC>/. .
 | -------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
 | [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md)              | Slash + opt-in hooks        | Why are slash commands primary and hooks default-OFF?                |
 | [ADR-0004](docs/adr/ADR-0004-phase-pipeline.md)                      | Phase pipeline for improve  | Why `tighten → lateral → sharpen → deterministic`? Why eval-gated invariants per phase rather than free-form rewrites? |
+| [ADR-0005](docs/adr/ADR-0005-opt-in-debate-for-evaluate.md)          | Opt-in debate for evaluate  | Why is multi-agent `--debate` scoped to evaluate only, default-OFF, recall-biased, and not bound by AC-6? |
 
 > v1.0's ADR-0001 (static-KB choice) and ADR-0002 (single-evaluator agent)
 > are retired in v2 — the static KB itself was retired, and the single
