@@ -4,7 +4,7 @@
 
 ### A project-fit companion for Claude Code harnesses<br/>that *evolves alongside* your project's own lifecycle.
 
-[![Plugin](https://img.shields.io/badge/plugin-v2.1.4-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
+[![Plugin](https://img.shields.io/badge/plugin-v2.2.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-737373?style=flat-square)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-d97706?style=flat-square)](https://claude.com/claude-code)
 [![Status](https://img.shields.io/badge/status-stable-success?style=flat-square)](CHANGELOG.md)

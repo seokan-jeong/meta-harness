@@ -7,7 +7,7 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [2.2.0] — 2026-06-02
 
 ### Added
 
@@ -457,6 +457,7 @@ historical reference only.
 
 ---
 
+[2.2.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.2.0
 [2.1.4]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.4
 [2.1.3]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.3
 [2.1.2]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.2
