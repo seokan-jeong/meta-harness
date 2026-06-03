@@ -82,7 +82,7 @@ Four slash commands, each a thin trigger over a procedural skill.
 | Command                  | What it does                                                                                                | Side effects                                                       | Binds                |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------- |
 | `/meta-harness:build`    | Scaffolds a project-tailored harness: 3-file core + per-finding stubs.                                      | Writes only on approval · cwd-guard · diff preview · outer gate.   | `M3 AC-1 AC-8`       |
-| `/meta-harness:evaluate` | LLM-as-judge fit assessment of the current harness against the project.                                     | Emits strict JSON + short summary. No disk writes by default.      | `M2 AC-2 AC-6 AC-7`  |
+| `/meta-harness:evaluate` | LLM-as-judge fit assessment — strict-superset **debate panel by default** (`--single` for one pass). | Emits strict JSON + short summary. No disk writes by default.      | `M2 AC-2 AC-6 AC-7`  |
 | `/meta-harness:manage`   | Read-only LLM-free healthcheck: inventory, fit-drift via hash, internal lint.                               | Hook-callable. Optional `--write-report`.                          | `M4 AC-9`            |
 | `/meta-harness:improve`  | 4-phase pipeline: **tighten → lateral → sharpen → deterministic**. Phases 1-3 are LLM with structural invariants; phase 4 is the v2.0 loop. | Per-phase approval gate + regression guard. AC-3 reproducibility via `--phases deterministic`. | `M5 AC-3 HR-5`       |
 
@@ -199,7 +199,7 @@ At your project root:
 #  → cwd guard prompt → analyzer-driven gap discovery →
 #    diff preview → atomic write of (3-file core + per-finding stubs)
 
-# 2 ── Get a fit-assessment
+# 2 ── Get a fit-assessment (debate panel by default; --single for one pass)
 /meta-harness:evaluate
 #  → JSON: findings by category × severity, qualitative bucket
 #    (well-aligned / good / decent / draft)
@@ -254,10 +254,12 @@ Each finding includes an `evidence_ref` pointing to a real file path or
 file:line in the project. The evaluator skill validates evidence refs
 exist before returning the JSON (no hallucinated paths).
 
-> **Reproducibility floor** — with the same `(project_tree_hash,
-> harness_state_hash)` pair and evaluator model, three consecutive
-> `evaluate` runs produce the same set of high-severity findings (low and
-> medium may vary by ≤ 1 each).
+> **Reproducibility floor (AC-6)** — verified on `--single`: with the same
+> `(project_tree_hash, harness_state_hash)` pair and evaluator model, three
+> consecutive `evaluate --single` runs produce the same set of high-severity
+> findings (low and medium may vary by ≤ 1 each). The **default debate panel
+> is deliberately non-reproducible** (proposer diversity) — but it is a strict
+> superset of `--single`, so it never loses a finding. See ADR-0006.
 
 ---
 
@@ -268,7 +270,8 @@ The plugin ships two hook scripts under `hooks/` but the plugin's
 [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md). Hook-triggered
 runs of `manage` or `evaluate` write to disk and (for `evaluate`) cost
 LLM tokens — the operator must consciously register them in their own
-`settings.json`. The hook scripts themselves additionally hard-check
+`settings.json`. (The Stop hook pins `evaluate --single`, the cheap one-pass
+path, not the default debate panel — ADR-0006.) The hook scripts themselves additionally hard-check
 for `.meta-harness/` and `exit 0` silently on non-harnessed projects,
 so the registration is the only meaningful opt-in step.
 
