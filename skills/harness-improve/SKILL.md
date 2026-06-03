@@ -7,7 +7,7 @@ invoked_by:
 invokes:
   - skills/harness-evaluate (per-round before/after fit assessment in phase 4 + per-phase delta checks in phases 1-3)
 related_requirements: [FR-3, NFR-1, NFR-4, NFR-5, HR-1, HR-3, HR-4, HR-5, AC-3]
-related_adrs: [ADR-0003, ADR-0004]
+related_adrs: [ADR-0003, ADR-0004, ADR-0006]
 user-invocable: false
 ---
 
@@ -318,7 +318,7 @@ filtered. Files under 30 lines skipped (no useful deletions).
    and copy every target file to its mirrored relative path. Single
    rollback record for the phase.
 2. **Before-fit.** If phase 1 is the first phase actually executing,
-   invoke `harness-evaluate` for `before_fit`. Otherwise reuse prior
+   invoke `harness-evaluate --single` for `before_fit`. Otherwise reuse prior
    phase's `after_fit`.
 3. **LLM pass.** For each target file, feed full content + the tighten
    proposer prompt. Model returns
@@ -339,7 +339,7 @@ filtered. Files under 30 lines skipped (no useful deletions).
    - Atomic write via `.tmp.$$` → `mv` (HR-1).
    - Mid-batch failure → restore all files from `phase-1-tighten/`
      snapshot; record `applied: false, regressed: false`.
-7. **After-fit + regression guard.** Invoke `harness-evaluate` again.
+7. **After-fit + regression guard.** Invoke `harness-evaluate --single` again.
    If `after_fit.actionable > before_fit.actionable` (deletion removed
    load-bearing content), **auto-revert from snapshot**, mark
    `regressed: true`, continue to next phase. The phase did not apply.
@@ -498,8 +498,15 @@ state file.
 
 ### Step 2 — Before-fit (evaluate)
 
-Invoke `skills/harness-evaluate` against the target. Capture the JSON
-result. Extract:
+Invoke `skills/harness-evaluate --single` against the target. Capture the
+JSON result. Extract:
+
+> **All internal evaluate calls pin `--single` (ADR-0006).** Since v3.0.0
+> `evaluate` defaults to the debate panel; improve MUST pin `--single` on
+> every before/after-fit and regression-guard call. This keeps phase 4
+> **byte-reproducible (AC-3)** and keeps the HR-5 stagnation streak and the
+> phase 1-3 regression auto-revert on the **AC-6 ±1 band** (both rely on the
+> single pass). A debated evaluate here would break both.
 
 - `fit_assessment.qualitative`
 - `fit_assessment.coverage_gaps + over_coverage + stale_references + pain_patterns` → `findings_total`
@@ -646,7 +653,7 @@ Reached only if Step 6 actually applied changes (i.e., not `--no-apply`,
 not user-declined, not advisory-only). Otherwise `after_fit = before_fit`
 and `delta_actionable = 0`.
 
-Invoke `harness-evaluate` again. Capture the new counts. Compute:
+Invoke `harness-evaluate --single` again. Capture the new counts. Compute:
 
 ```
 delta_actionable = after_fit.actionable - before_fit.actionable

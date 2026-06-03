@@ -10,7 +10,7 @@
       "source": {
         "source": "github",
         "repo": "seokan-jeong/meta-harness",
-        "ref": "v2.2.0"
+        "ref": "v3.0.0"
       }
     }
   ]

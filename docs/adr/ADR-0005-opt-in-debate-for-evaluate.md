@@ -1,13 +1,22 @@
 ---
 adr_id: ADR-0005
 title: Opt-in multi-agent debate for the evaluate analyzer pass (--debate)
-status: Accepted
+status: Superseded in part by ADR-0006
 date: "2026-06-02"
 related_requirements: [FR-4, NFR-1, NFR-2, HR-2, HR-4, AC-6]
 related_adrs: [ADR-0003, ADR-0004]
+superseded_by: [ADR-0006]
 ---
 
 # ADR-0005: Opt-in multi-agent debate for the evaluate analyzer pass
+
+> **Superseded in part by [ADR-0006](ADR-0006-debate-by-default.md) (v3.0.0).**
+> The mechanism (panel topology, schema ownership, injection handling, the
+> empirical n=1→n=6 evidence) carries forward, but ADR-0006 **reverses the
+> default**: debate is now ON by default via a strict-superset panel, the
+> Workflow-tool-dispatch framing is replaced by Task sub-agent fan-out, and
+> internal callers pin `--single`. Read this ADR for the original rationale;
+> read ADR-0006 for the current behavior.
 
 ## Context
 

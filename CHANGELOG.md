@@ -7,6 +7,53 @@ versioning follows [SemVer 2.0.0](https://semver.org/).
 
 ---
 
+## [3.0.0] — 2026-06-03
+
+**Debate by default.** `/meta-harness:evaluate` now runs the multi-agent
+debate panel by default, after a 6-project efficacy eval showed it beats a
+single pass (6/6, 0 losses) once made a strict superset. ADR-0006.
+
+### Changed (BREAKING)
+
+- **`evaluate` defaults to the debate panel** (was opt-in/default-OFF in
+  v2.2.0). Run `/meta-harness:evaluate --single` for the previous one-pass
+  behavior. `--json-only` implies `--single`. `--single --debate` →
+  `EVAL_BAD_ARGS`. Scripted/CI callers that relied on the cheap single pass
+  should pass `--single` (or `--json-only`, which now implies it).
+- **Strict-superset topology.** The panel is *single holistic base ∪ verified
+  expansion* (base pass + 2 diverse-lens proposers → critic → synthesis). The
+  synthesis MUST keep every grounded base finding, so debate **never loses a
+  finding `--single` would have produced** — it only adds repo-grounded gaps
+  and reconciles severity. This fixes the v2.2.0 panel's ability to drop a
+  real finding (it dropped a hardcoded-credential finding in the eval).
+- **Dispatch is Task sub-agent fan-out**, not "the Workflow tool" — so the
+  default carries no separate per-run opt-in gate (running the command is the
+  opt-in). Fail-soft to a single pass with `EVAL_DEBATE_UNAVAILABLE` if
+  sub-agent dispatch is unavailable.
+- **Internal callers pin `--single`**: `harness-improve` (all before/after-fit
+  + regression-guard calls), `harness-build` (gap discovery), and the Stop
+  hook. This keeps phase-4 **AC-3** reproducibility and the HR-5 stagnation /
+  regression math on the **AC-6 ±1 band** intact. AC-6 is verified on
+  `--single`. Linter check 7 now enforces these pins (was: confine `--debate`).
+- **New grounding rule**: findings may not assert git-tracking/committed/
+  gitignore state (ungroundable from a file-tree sketch) — removes a
+  false-positive class seen in the eval.
+
+### Empirical basis
+
+- 6 real projects (Flutter, Next.js, Python MCP, TS MCP, large-code/thin-
+  harness, Obsidian), single-pass vs panel, every finding-delta ground-truth-
+  verified against the actual repo. First pass: 4 wins / 2 ties / 0 losses,
+  calibration debate-better 6/6. After the strict-superset fix, the 2 ties
+  flipped → **6/6, 0 losses**, +2–7 real gaps/project with no net false-
+  positive increase. Caveats (n=6, superset partly by construction, single-
+  pass recall variance on rare findings) are recorded in ADR-0006.
+
+### Notes
+
+- ADR-0005 (opt-in `--debate`) is **superseded in part** by ADR-0006; its
+  mechanism carries forward, the default is reversed.
+
 ## [2.2.0] — 2026-06-02
 
 ### Added
@@ -457,6 +504,7 @@ historical reference only.
 
 ---
 
+[3.0.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v3.0.0
 [2.2.0]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.2.0
 [2.1.4]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.4
 [2.1.3]: https://github.com/seokan-jeong/meta-harness/releases/tag/v2.1.3

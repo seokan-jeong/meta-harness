@@ -7,7 +7,7 @@ invoked_by:
 invokes:
   - agents/project-fit-analyzer
 related_requirements: [FR-1, NFR-4, HR-1, HR-3, HR-4, AC-8]
-related_adrs: [ADR-0003]
+related_adrs: [ADR-0003, ADR-0006]
 user-invocable: false
 ---
 
@@ -256,6 +256,9 @@ With the analyzer enabled:
    model-id injection, token-budget guard, and output redaction described
    in `harness-evaluate` Step 4. The retry-once-then-fail-closed policy
    applies (`harness-evaluate` Step 5).
+   This is a **single analyzer pass** (`--single` semantics, ADR-0006): build
+   does its own one-shot analyzer invocation for gap discovery — it does NOT
+   run `evaluate`'s default debate panel (a bootstrap doesn't need it; cost).
 3. The analyzer returns its standard fit-findings JSON. The build skill is
    interested specifically in:
    - `findings[*].category == "coverage-gap"` — areas the core scaffold

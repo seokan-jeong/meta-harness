@@ -1,7 +1,7 @@
 ---
 name: evaluate
-description: "Assess how well the current project's Claude Code harness fits the project's actual shape and needs. Invokes the project-fit-analyzer agent and returns strict JSON fit findings plus a short human summary."
-argument-hint: "[--target <path>] [--json-only] [--raw-out <file>] [--debate]"
+description: "Assess how well the current project's Claude Code harness fits the project's actual shape and needs. Runs a strict-superset multi-agent debate panel by default (ADR-0006); --single for one analyzer pass. Returns strict JSON fit findings plus a short human summary."
+argument-hint: "[--target <path>] [--json-only] [--raw-out <file>] [--single] [--debate]"
 allowed-tools:
   - Read
   - Glob
@@ -38,9 +38,10 @@ You can also let an opt-in `Stop` hook call this in the background
 | Argument | Default | Meaning |
 |----------|---------|---------|
 | `--target <path>` | current working directory | Project root to evaluate. Must exist, must be a directory, must NOT be `/`, `$HOME`, or `/tmp`. |
-| `--json-only` | off | Suppress the human summary; emit only the strict JSON document. Useful for hook callers and scripted pipelines. |
+| `--json-only` | off | Suppress the human summary; emit only the strict JSON document. Useful for hook callers and scripted pipelines. **Implies `--single`** unless `--debate` is also passed (scripted callers stay cheap + reproducible). |
 | `--raw-out <file>` | (none) | If set, write the strict JSON document to this path atomically (`.tmp` then `mv`), in addition to stdout. |
-| `--debate` | off | **Opt-in** (ADR-0005). Replace the single analyzer pass with a Claude Code **Workflow-tool** debate panel (2 diverse-lens proposers → 1 critic → 1 synthesis) for higher recall + severity calibration. The typed flag IS the Workflow tool's required user opt-in. Parsed AFTER the HR-3 cwd guard; **never** passed by hooks or by `build`/`improve`. If the Workflow tool is unavailable, falls back to a single pass with an `EVAL_DEBATE_UNAVAILABLE` stderr notice. Same strict-JSON output; not a reproducibility guarantee (AC-6 covers the default path). |
+| `--single` | off (debate is default) | Run **one** analyzer pass instead of the default debate panel — the reproducible, low-cost path (AC-6 is verified on it). Use for CI / golden-file pipelines. Internal callers (`improve`, `build`, the Stop hook) pin it. |
+| `--debate` | **on by default** (ADR-0006) | The default behavior since v3.0.0: a strict-superset panel — a single holistic base pass ∪ verified expansion (2 diverse-lens proposers → critic → synthesis) — for higher recall + severity calibration, dispatched as ordinary Task sub-agents. Because it starts from the single pass it **never loses** a `--single` finding. Pass `--debate` explicitly only to force the panel under `--json-only`. `--single --debate` → `EVAL_BAD_ARGS`. If sub-agent dispatch is unavailable, falls back to a single pass with an `EVAL_DEBATE_UNAVAILABLE` notice. |
 
 If no `--target` is given, the current working directory is used.
 
@@ -112,17 +113,20 @@ See `skills/harness-evaluate/SKILL.md` for the authoritative procedure.
 ## Examples
 
 ```bash
-# Evaluate the current project.
+# Evaluate the current project — runs the debate panel by default.
 /meta-harness:evaluate
 
-# Evaluate a different project, capture JSON to disk.
+# One analyzer pass (reproducible / low-cost; for CI / golden files).
+/meta-harness:evaluate --single
+
+# Evaluate a different project, capture JSON to disk (debate by default).
 /meta-harness:evaluate --target ../other-project --raw-out ./fit-baseline.json
 
-# Hook-friendly: silent JSON-only invocation.
+# Hook-friendly: silent JSON-only invocation (implies --single).
 /meta-harness:evaluate --json-only
 
-# Opt-in multi-agent debate panel (higher recall + severity calibration).
-/meta-harness:evaluate --debate
+# Force the debate panel even for a scripted/JSON-only run.
+/meta-harness:evaluate --json-only --debate
 ```
 
 ## Related
@@ -132,4 +136,5 @@ See `skills/harness-evaluate/SKILL.md` for the authoritative procedure.
 - `commands/build.md` — bootstraps the harness this evaluator reads.
 - `commands/improve.md` — consumes the findings this evaluator produces.
 - `ADR-0003` (slash + opt-in hooks).
-- `ADR-0005` (opt-in `--debate` multi-agent panel for the analyzer pass).
+- `ADR-0005` (the original opt-in `--debate` panel — superseded in part).
+- `ADR-0006` (debate by default, strict-superset panel; internal callers pin `--single`).

@@ -133,25 +133,30 @@ done
 [ "$FAILS" -eq "$before" ] && note_ok "all ${#REQUIRED_TEMPLATES[@]} required build templates present"
 
 # ---------------------------------------------------------------------------
-# 7. --debate flag confined to the evaluate command + skill (ADR-0005).
-#    --debate is the opt-in carrier for the Workflow-tool debate panel. It must
-#    appear ONLY in commands/evaluate.md and skills/harness-evaluate/SKILL.md.
-#    Leakage into improve/build/manage or a hook would breach AC-3 byte-
-#    reproducibility, the Workflow per-run opt-in contract, or the cost
-#    envelope. We scan the PRODUCT surfaces only — docs/adr, README, and
-#    CHANGELOG legitimately document the flag and are intentionally excluded.
+# 7. Internal evaluate callers pin --single (ADR-0006).
+#    Since v3.0.0 `evaluate` defaults to the debate panel. Any caller that
+#    invokes evaluation INTERNALLY must pin --single, or it would silently
+#    trigger a ~5-pass panel and break AC-3 reproducibility (improve phase 4),
+#    the HR-5 stagnation / regression ±1 band (improve), or the cost envelope
+#    (the Stop hook). This check asserts --single is present in each such
+#    caller. (build does its own one-shot analyzer pass and states --single
+#    semantics in Step 4.)
 # ---------------------------------------------------------------------------
-echo "[7] --debate confined to evaluate command + skill (ADR-0005 scope boundary)"
+echo "[7] internal evaluate callers pin --single (ADR-0006)"
 before=$FAILS
-DEBATE_ALLOW=" commands/evaluate.md skills/harness-evaluate/SKILL.md "
-debate_hits=$(grep -lF -- '--debate' "${SKILLS[@]}" "${COMMANDS[@]}" hooks/* 2>/dev/null | sort -u)
-for f in $debate_hits; do
-  case "$DEBATE_ALLOW" in
-    *" $f "*) : ;;
-    *) note_fail "--debate appears in $f (must be confined to: commands/evaluate.md + skills/harness-evaluate/SKILL.md)";;
-  esac
+SINGLE_PINNERS=(
+  skills/harness-improve/SKILL.md
+  skills/harness-build/SKILL.md
+  hooks/stop-evaluate.sh
+)
+for f in "${SINGLE_PINNERS[@]}"; do
+  if [ -f "$f" ]; then
+    grep -qF -- '--single' "$f" || note_fail "$f invokes evaluation internally but does not pin --single (ADR-0006)"
+  else
+    note_fail "expected internal evaluate caller missing: $f"
+  fi
 done
-[ "$FAILS" -eq "$before" ] && note_ok "--debate confined to the evaluate command + skill"
+[ "$FAILS" -eq "$before" ] && note_ok "improve / build / Stop-hook all pin --single"
 
 echo
 if [ "$FAILS" -eq 0 ]; then

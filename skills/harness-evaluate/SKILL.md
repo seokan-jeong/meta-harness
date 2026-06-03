@@ -7,7 +7,7 @@ invoked_by:
 invokes:
   - agents/project-fit-analyzer
 related_requirements: [FR-4, NFR-1, NFR-3, NFR-5, HR-1, HR-3, HR-4, AC-2, AC-6, AC-7]
-related_adrs: [ADR-0003, ADR-0005]
+related_adrs: [ADR-0003, ADR-0005, ADR-0006]
 user-invocable: false
 ---
 
@@ -39,7 +39,8 @@ The skill's job is to:
 | Target project root    | `--target <path>` arg, else `$PWD`                                                       | Yes      |
 | Analyzer agent file    | `agents/project-fit-analyzer.md` (in the plugin install root)                            | Yes      |
 | Runtime model id       | Inherited from the host harness (see Step 4.1)                                           | Yes      |
-| `--debate` flag        | argv (default **off**). Opt-in only; consumed at Step 4 (§4.0). See ADR-0005.            | No       |
+| `--single` flag        | argv. Run one analyzer pass instead of the default debate panel (§4.0). Reproducible / low-cost. `--json-only` implies it; internal callers pin it. See ADR-0006. | No |
+| `--debate` flag        | argv. Force the debate panel even under `--json-only`. (Debate is the default otherwise.) `--single --debate` → `EVAL_BAD_ARGS`. | No |
 
 There is no KB input. The prior `docs/kb-manifest.json` + `docs/theory/*.md`
 KB chain has been retired — the standard of "good harness" is the project
@@ -287,68 +288,81 @@ Use the Task tool (or the plugin runtime's equivalent sub-agent dispatcher)
 to invoke `agents/project-fit-analyzer`. The agent's input expectations come
 from its `input_contract` in `agents/project-fit-analyzer.md`.
 
-**Default = single pass.** Unless `--debate` is set, run exactly one analyzer
-invocation per §4.1–4.4. This is the byte-unchanged behavior every default,
-`--json-only`, hook, and build/improve-internal caller gets. AC-6 is
-verified on this path.
+**Default = debate panel; `--single` for one pass (ADR-0006).** By default
+this step runs the **debate panel** (§4.0). `--single` runs exactly one
+analyzer invocation (§4.1–4.4) — the reproducible, low-cost path.
+`--json-only` **implies `--single`** unless `--debate` is also passed
+(scripted / CI / hook callers stay cheap by default). `--single --debate`
+together is `EVAL_BAD_ARGS`. **Internal callers pin `--single`**:
+`harness-improve` (every phase's before/after-fit + regression-guard
+evaluate), `harness-build` (gap discovery), and the Stop hook all run the
+single pass — this is what keeps **AC-3** reproducible and the HR-5
+stagnation / regression math on the AC-6 ±1 band (both rely on the single
+pass). AC-6 is verified on `--single`.
 
-### 4.0 Debate panel (opt-in, `--debate`) — ADR-0005
+### 4.0 Debate panel (default) — ADR-0006
 
-This subsection runs **only when `--debate` is present** on the invocation.
-It replaces the single §4.1–4.4 analyzer call with a multi-agent panel and
-then hands **one** synthesized object to the unchanged Step 5 validator. It
-is an opt-in *thoroughness escalation* aimed at recall + severity
-calibration — **not** a reproducibility guarantee (see the AC-6 note in
-§"AC-6"). It is reachable only from a top-level interactive `evaluate`
-(the typed flag IS the Workflow tool's required user opt-in); `--debate` is
-never parsed by `manage`/`build`/`improve` and never forwarded by them, so
-no nested or hook caller ever fires a panel.
+The default analyzer step. It runs a **strict-superset** panel — *single
+holistic base ∪ verified expansion* — and hands **one** synthesized object to
+the unchanged Step 5 validator. Because it starts from the single pass, it can
+**never lose a finding `--single` would have produced**; the expansion only
+adds repo-grounded gaps and reconciles severity. Replaced by the lone
+§4.1–4.4 pass whenever `--single` is in effect (explicit, or implied by
+`--json-only`, or pinned by an internal caller).
 
-**Dispatch.** Run the panel via the Claude Code **Workflow tool**. If the
-Workflow tool is unavailable in the session, **fail soft**: emit
-`EVAL_DEBATE_UNAVAILABLE: ran single-pass` on stderr and fall back to the
-§4.1–4.4 single pass (never abort the evaluate, never silently claim a
-debated result).
+**Dispatch.** The panel is ordinary **Task sub-agent fan-out** — the same
+sub-agent mechanism §4.1 already uses for the single analyzer, just several
+passes. It is NOT "the Workflow tool" (no separate per-run opt-in gate):
+running `/meta-harness:evaluate` is itself the user's invocation of the
+command's documented default. If sub-agent dispatch is unavailable, **fail
+soft**: emit `EVAL_DEBATE_UNAVAILABLE: ran single-pass` on stderr and run the
+§4.1–4.4 single pass.
 
-**Topology (2 proposers → 1 critic → 1 synthesis):**
+**Topology (1 base + 2 proposers → 1 critic → 1 synthesis):**
 
-1. **Proposers (2, parallel, diverse-lens).** Two `project-fit-analyzer`
-   instances over the *identical* §4.2 prompt (same model-id header, same
-   hashes, same `project_sketch` / `harness_state` as DATA, same injection
-   guard). Both perform the full four-category analysis under the full
-   evidence rules; the only difference is an appended attention nudge —
-   proposer A: "scrutinize coverage-gap + pain-pattern (what the project
-   needs that's missing)"; proposer B: "scrutinize over-coverage +
-   stale-reference (what the harness carries that the project doesn't
-   justify)". The nudge steers attention, never the schema. Each emits the
-   normal strict-JSON findings object.
-2. **Critic (1, free-form, DATA-only).** Fed both candidate arrays as DATA
+1. **Base (1).** One holistic `project-fit-analyzer` pass — exactly the
+   §4.1–4.4 `--single` invocation. Its findings are the authoritative
+   baseline the synthesis may not drop.
+2. **Proposers (2, parallel, diverse-lens).** Two more instances over the
+   *identical* §4.2 prompt (same model-id header, hashes, `project_sketch` /
+   `harness_state` as DATA, same injection guard), each with an appended
+   attention nudge — A: "scrutinize coverage-gap + pain-pattern (what the
+   project needs that's missing)"; B: "scrutinize over-coverage +
+   stale-reference (what the harness carries that the project can't justify)".
+   The nudge steers attention, never the schema/evidence rules.
+3. **Critic (1, free-form, DATA-only).** Fed all three candidate sets as DATA
    (same injection-guard language as §4.1's data fences). It flags: (a) any
-   `evidence.ref` absent from the inputs, (b) duplicates across the two
-   arrays keyed on `(category, primary evidence ref)`, (c) severity
-   disagreements. It emits **free-form notes only — never the schema**, so
-   there is never a second schema emitter.
-3. **Synthesis (1 `project-fit-analyzer` pass).** Invoked exactly as
-   §4.1–4.4, with **one additive optional input** appended per §4.2: a
-   `debate_transcript` (both candidate arrays + the critic notes). Per the
-   agent's "Synthesis mode" section it **unions** the evidence-grounded
-   findings (recall), drops critic-flagged hallucinations + merges
-   duplicates (precision), takes the more-conservative severity on
-   disagreement (calibration), re-ids `F-001…`, and recomputes
-   `fit_assessment` counters. It emits **one** object per the unchanged
-   `output_contract`.
+   `evidence.ref` absent from the inputs — **including ungroundable git-state
+   claims** (§4.0.1), (b) duplicates keyed on `(category, primary evidence
+   ref)`, (c) severity disagreements. It emits **free-form notes only — never
+   the schema**, so there is never a second schema emitter.
+4. **Synthesis (1 `project-fit-analyzer` pass).** Invoked exactly as §4.1–4.4,
+   with **one additive optional input** appended per §4.2: a
+   `debate_transcript` (the base set + both proposer sets + critic notes). Per
+   the agent's "Synthesis mode" it is a **strict superset**: it MUST keep every
+   grounded **base** finding (merge / severity-reconcile only — never silently
+   drop one), THEN add every evidence-grounded proposer finding, dropping only
+   hallucinations and exact duplicates, taking the more-conservative severity
+   on disagreement. Re-ids `F-001…`, recomputes `fit_assessment` counters,
+   emits **one** object per the unchanged `output_contract`.
 
-**`primary evidence ref`** (used by the critic's dedup and severity match)
-is defined deterministically as the first `evidence[]` entry whose `kind` is
-a present path (`project-path` / `harness-path` / `config-key`), else the
-first entry.
+**`primary evidence ref`** (used for dedup + severity match) = the first
+`evidence[]` entry whose `kind` is a present path (`project-path` /
+`harness-path` / `config-key`), else the first entry.
 
-The synthesized object then flows into **Step 5 exactly as a single-pass
-response would** — same strict parse, schema validation, evidence-ref
-existence check, and retry-once-then-`EVAL_INVALID_JSON`. Step 5 is the
-hard backstop on schema + hallucinated refs; the panel never bypasses it.
-`project-fit-analyzer.md` remains the sole schema owner (proposers +
-synthesis are the only schema emitters; the critic is not).
+The synthesized object flows into **Step 5 exactly as a single-pass response
+would** — strict parse, schema + evidence-ref validation, retry-once-then
+`EVAL_INVALID_JSON`. Step 5 is the hard backstop; the panel never bypasses it.
+`project-fit-analyzer.md` remains the sole schema owner (base + proposers +
+synthesis are the only schema emitters; the critic is not). The strict-superset
+rule guarantees the default never regresses below `--single`.
+
+#### 4.0.1 Grounding rule — no git-state claims
+
+No finding may assert a file is "committed", "tracked in git", "checked in",
+or "lacks a `.gitignore` entry": the input is a file tree, not git state, so
+such claims are ungroundable. The critic flags them and the synthesis drops
+them (a false-positive class surfaced by the ADR-0006 efficacy eval).
 
 ### 4.1 evaluator_model_id injection pattern
 
@@ -390,12 +404,13 @@ additional DATA block after `harness_state`, and nothing else changes:
 
 ```
 --- debate_transcript ---
-<JSON: { "candidates": [<proposer A findings>, <proposer B findings>], "critic_notes": "<free-form>" }>
+<JSON: { "single_baseline": <base findings>, "candidates": [<proposer A>, <proposer B>], "critic_notes": "<free-form>" }>
 ```
 
-This block is present **only** on the synthesis pass of a `--debate` run.
-Proposer passes use the identical prompt *without* it. The agent treats it
-as DATA per its "Synthesis mode" + Injection guard sections.
+This block is present **only** on the synthesis pass of a default (debate)
+run. The base + proposer passes use the identical prompt *without* it. The
+agent treats it as DATA per its "Synthesis mode" + Injection guard sections,
+and keeps every grounded `single_baseline` finding (strict superset).
 
 ### 4.3 Token budget guard (NFR-2 informational)
 
@@ -504,7 +519,7 @@ The operator verifies AC-6 outside the skill:
 
 ```bash
 for i in 1 2 3; do
-  /meta-harness:evaluate --json-only --raw-out "/tmp/eval-$i.json"
+  /meta-harness:evaluate --single --json-only --raw-out "/tmp/eval-$i.json"
 done
 
 jq -s '
@@ -515,15 +530,16 @@ jq -s '
 
 PASS condition: `lengths` max-min ≤ 1 AND `qualitatives` cluster as above.
 
-**`--debate` is exempt by design (ADR-0005).** AC-6 characterizes the
-**default single-pass path** and is verified on it (run the loop above
-*without* `--debate`). The opt-in debate path is a deliberately
-non-reproducible thoroughness escalation — proposer diversity is its point,
-so its finding set may legitimately be a superset of a single pass. This
-does not weaken AC-6: debate is evaluate-only and never feeds improve's
-stagnation/regression math (which is what relies on the ±1 band — see
-`harness-improve`), because improve never runs a debated evaluate. No
-separate "debate band" is defined or claimed.
+**AC-6 is verified on `--single` (ADR-0006).** AC-6 characterizes the
+**`--single` path** — hence the `--single` flag in the loop above. The
+default debate panel is deliberately non-reproducible (proposer diversity is
+its point) and is a strict superset of the single pass, so no separate
+"debate band" is defined or claimed. AC-6 still governs everything that
+relies on the ±1 band, because those callers pin `--single`: improve's
+stagnation / regression math and phase-4 reproducibility (AC-3) all run the
+single pass. So the default flip to debate does **not** weaken AC-6 or AC-3 —
+the reproducible contract simply lives on `--single`, which the internal
+callers use.
 
 ---
 
@@ -540,7 +556,8 @@ separate "debate band" is defined or claimed.
 | Evidence ref hallucination (a `ref` doesn't match any path/key in inputs)            | Treated as validation failure; same retry-then-fail-closed policy.                                  |
 | Token budget exceeds ~200K input                                                     | Warning on stderr; do NOT abort.                                                                    |
 | `evaluator_model_id` not capturable from env/state                                   | Use literal `claude-unknown`; warn on stderr.                                                       |
-| `--debate` set but the Workflow tool is unavailable in the session                   | `EVAL_DEBATE_UNAVAILABLE: ran single-pass` on stderr; **fall back** to the §4.1–4.4 single pass (not a failure — exit 0). |
+| Debate panel (default) but sub-agent dispatch is unavailable in the session          | `EVAL_DEBATE_UNAVAILABLE: ran single-pass` on stderr; **fall back** to the §4.1–4.4 single pass (not a failure — exit 0). |
+| `--single` and `--debate` both passed                                                 | `EVAL_BAD_ARGS` on stderr, exit non-zero (contradictory: one pass vs the panel).                   |
 
 ---
 

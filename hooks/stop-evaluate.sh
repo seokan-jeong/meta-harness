@@ -47,7 +47,11 @@ out="${reports_dir}/${ts}-evaluate.json"
 # Evaluate exposes neither --write-report nor --silent (both are manage-only
 # flags), so we capture output via the > redirect below. --json-only
 # suppresses the human summary, leaving only the strict JSON document.
+# --single pins the one-pass analyzer (ADR-0006): since v3.0.0 evaluate
+# defaults to a ~5-pass debate panel, and a panel on every Stop is a cost
+# footgun. (--json-only also implies --single, but we pin it explicitly.)
 claude /meta-harness:evaluate \
   --target "${target}" \
+  --single \
   --json-only \
   > "${out}"

@@ -4,7 +4,7 @@
 
 ### A project-fit companion for Claude Code harnesses<br/>that *evolves alongside* your project's own lifecycle.
 
-[![Plugin](https://img.shields.io/badge/plugin-v2.2.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
+[![Plugin](https://img.shields.io/badge/plugin-v3.0.0-2563eb?style=flat-square&logo=anthropic&logoColor=white)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-737373?style=flat-square)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-d97706?style=flat-square)](https://claude.com/claude-code)
 [![Status](https://img.shields.io/badge/status-stable-success?style=flat-square)](CHANGELOG.md)
@@ -361,7 +361,7 @@ cp -R .meta-harness/snapshots/<UTC>/. .
 | **Atomic write**     | All disk writes use `.tmp.$$` → `mv`. Build/improve snapshot pre-overwrite files under `.meta-harness/snapshots/<UTC>/`.                                  | `HR-1`         |
 | **Cap + stagnation** | Improve never runs > 3 rounds; 2 consecutive `delta_actionable ≥ 0` auto-exits.                                                                            | `AC-3 HR-5`    |
 | **Injection guard**  | Project and harness file content is fed to the analyzer as **data**, not as instructions.                                                                  | `HR-2`         |
-| **Opt-in debate**    | `evaluate --debate` runs a Workflow-tool debate panel; **default OFF**, zero cost unless typed, never fired by hooks/build/improve, fail-soft to single-pass. | `ADR-0005`     |
+| **Debate by default** | `evaluate` runs a strict-superset debate panel by default (never loses a `--single` finding); `--single` is the reproducible/low-cost opt-out; internal callers (improve/build/Stop-hook) pin `--single` so AC-3/AC-6 hold; fail-soft to single-pass. | `ADR-0006`     |
 
 > **Threat model for HR-4** — local defense-in-depth, *not* an API-transport
 > guard. The Claude Code host handles transport; meta-harness adds no new
@@ -376,7 +376,8 @@ cp -R .meta-harness/snapshots/<UTC>/. .
 | -------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
 | [ADR-0003](docs/adr/ADR-0003-slash-plus-optin-hooks.md)              | Slash + opt-in hooks        | Why are slash commands primary and hooks default-OFF?                |
 | [ADR-0004](docs/adr/ADR-0004-phase-pipeline.md)                      | Phase pipeline for improve  | Why `tighten → lateral → sharpen → deterministic`? Why eval-gated invariants per phase rather than free-form rewrites? |
-| [ADR-0005](docs/adr/ADR-0005-opt-in-debate-for-evaluate.md)          | Opt-in debate for evaluate  | Why is multi-agent `--debate` scoped to evaluate only, default-OFF, recall-biased, and not bound by AC-6? |
+| [ADR-0005](docs/adr/ADR-0005-opt-in-debate-for-evaluate.md)          | Opt-in debate for evaluate *(superseded in part)* | The original opt-in `--debate` panel (default-OFF). Superseded by ADR-0006. |
+| [ADR-0006](docs/adr/ADR-0006-debate-by-default.md)                   | Debate by default           | Why debate is now the default (strict-superset panel, n=6 eval), and why internal callers pin `--single` to keep AC-3/AC-6. |
 
 > v1.0's ADR-0001 (static-KB choice) and ADR-0002 (single-evaluator agent)
 > are retired in v2 — the static KB itself was retired, and the single
